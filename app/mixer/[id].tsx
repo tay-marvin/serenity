@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -7,6 +7,7 @@ import {
   View,
   Platform,
   Dimensions,
+  PanResponder,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -31,6 +32,136 @@ const C = {
   bg:            '#000000',
 };
 
+// ─── Horizontal Volume Slider ──────────────────────────────────────────────
+// Uses PanResponder so it works reliably inside a ScrollView.
+// The ScrollView's horizontal scroll is disabled on this axis; we capture
+// the gesture ourselves and call setMasterVolume on every move event.
+function VolumeSlider({
+  value,
+  accentColor,
+  onChange,
+}: {
+  value: number;
+  accentColor: string;
+  onChange: (v: number) => void;
+}) {
+  const startXRef = useRef(0);
+  const startValRef = useRef(value);
+  const lastHapticRef = useRef(value);
+  const trackWidth = width - 48; // matches horizontal padding
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: (e) => {
+        startXRef.current = e.nativeEvent.pageX;
+        startValRef.current = value;
+      },
+      onPanResponderMove: (e) => {
+        const dx = e.nativeEvent.pageX - startXRef.current;
+        const delta = (dx / trackWidth) * 100;
+        const next = Math.min(100, Math.max(0, Math.round(startValRef.current + delta)));
+        if (Math.abs(next - lastHapticRef.current) >= 5 && Platform.OS !== 'web') {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          lastHapticRef.current = next;
+        }
+        onChange(next);
+      },
+    })
+  ).current;
+
+  const fillPct = `${value}%` as `${number}%`;
+  const thumbLeft = (value / 100) * trackWidth;
+
+  return (
+    <View style={volStyles.section}>
+      <View style={volStyles.header}>
+        <Text style={volStyles.label}>Volume</Text>
+        <Text style={[volStyles.valueText, { color: accentColor }]}>{Math.round(value)}</Text>
+      </View>
+      <View
+        style={volStyles.trackWrap}
+        accessibilityRole="adjustable"
+        accessibilityLabel={`Master volume, ${Math.round(value)} percent`}
+        accessibilityValue={{ min: 0, max: 100, now: Math.round(value) }}
+        accessibilityHint="Drag left or right to adjust"
+        {...panResponder.panHandlers}
+      >
+        {/* Background track */}
+        <View style={volStyles.trackBg} />
+        {/* Filled portion */}
+        <View style={[volStyles.trackFill, { width: fillPct, backgroundColor: accentColor }]} />
+        {/* Thumb */}
+        <View
+          style={[
+            volStyles.thumb,
+            { left: thumbLeft - 8, shadowColor: accentColor },
+          ]}
+        />
+      </View>
+    </View>
+  );
+}
+
+const volStyles = StyleSheet.create({
+  section: {
+    marginBottom: 8,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  label: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#F5F5F0',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    lineHeight: 20,
+  },
+  valueText: {
+    fontSize: 14,
+    fontWeight: '500',
+    letterSpacing: 1,
+    lineHeight: 20,
+  },
+  trackWrap: {
+    height: 44,
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  trackBg: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 2,
+    backgroundColor: '#2A2A2A',
+    borderRadius: 1,
+  },
+  trackFill: {
+    position: 'absolute',
+    left: 0,
+    height: 2,
+    borderRadius: 1,
+  },
+  thumb: {
+    position: 'absolute',
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    top: 14,
+    backgroundColor: '#FFFFFF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+});
+
+// ─── Mixer Screen ────────────────────────────────────────────────────────────
 export default function MixerScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -306,48 +437,11 @@ export default function MixerScreen() {
         <View style={styles.divider} />
 
         {/* Master Volume */}
-        <View style={styles.volumeHeader}>
-          <Text style={styles.sectionLabel}>Volume</Text>
-          <Text style={[styles.volumeValue, { color: accent }]}>
-            {Math.round(isActive ? masterVolume : 80)}
-          </Text>
-        </View>
-
-        <View
-          style={styles.volumeTrackWrap}
-          accessibilityRole="adjustable"
-          accessibilityLabel={`Master volume, ${Math.round(isActive ? masterVolume : 80)} percent`}
-          accessibilityValue={{ min: 0, max: 100, now: Math.round(isActive ? masterVolume : 80) }}
-        >
-          <Pressable
-            style={styles.volumeHitArea}
-            onStartShouldSetResponder={() => true}
-            onResponderMove={(e) => {
-              const x = e.nativeEvent.locationX;
-              const trackW = width - 48;
-              const v = Math.min(100, Math.max(0, Math.round((x / trackW) * 100)));
-              setMasterVolume(v);
-            }}
-          >
-            <View style={styles.volumeTrackBg}>
-              <View
-                style={[
-                  styles.volumeFill,
-                  { width: `${isActive ? masterVolume : 80}%`, backgroundColor: accent },
-                ]}
-              />
-            </View>
-            <View
-              style={[
-                styles.volumeThumb,
-                {
-                  left: `${isActive ? masterVolume : 80}%`,
-                  shadowColor: accent,
-                },
-              ]}
-            />
-          </Pressable>
-        </View>
+        <VolumeSlider
+          value={isActive ? masterVolume : 80}
+          accentColor={accent}
+          onChange={setMasterVolume}
+        />
       </ScrollView>
 
       {/* Timer Sheet */}
@@ -497,50 +591,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
     lineHeight: 20,
     // accent color set per-soundscape; all ≥ 3:1 on black ✓
-  },
-  volumeHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  volumeValue: {
-    fontSize: 14,
-    fontWeight: '500',
-    letterSpacing: 1,
-    lineHeight: 20,
-  },
-  volumeTrackWrap: {
-    height: 44,                 // 44pt touch target ✓
-    justifyContent: 'center',
-  },
-  volumeHitArea: {
-    height: 44,
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  volumeTrackBg: {
-    height: 2,
-    backgroundColor: '#2A2A2A',
-    borderRadius: 1,
-    overflow: 'hidden',
-  },
-  volumeFill: {
-    height: '100%',
-    borderRadius: 1,
-  },
-  volumeThumb: {
-    position: 'absolute',
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    top: 14,
-    marginLeft: -8,
-    backgroundColor: '#FFFFFF',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 6,
-    elevation: 4,
   },
   // Bell styles
   bellHeader: {

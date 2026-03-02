@@ -101,3 +101,7 @@
 ## Bell Timer Update
 
 - [x] Add 1m option to bell interval chips on mixer screen
+
+## Bug Fixes
+
+- [x] Fix master volume slider — rebuilt with PanResponder (was broken inside ScrollView with Pressable responder)
