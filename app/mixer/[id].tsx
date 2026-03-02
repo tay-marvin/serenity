@@ -10,9 +10,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import { useKeepAwake } from 'expo-keep-awake';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { EQSlider } from '@/components/eq-slider';
@@ -21,7 +19,7 @@ import { useAudioEngine } from '@/lib/audio-engine';
 import { SOUNDSCAPES, EQ_BAND_LABELS } from '@/lib/sounds';
 import * as Haptics from 'expo-haptics';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 export default function MixerScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -84,23 +82,20 @@ export default function MixerScreen() {
   };
 
   const currentLevels = isActive ? levels : soundscape.presets[0].levels;
+  const accent = soundscape.color;
 
   return (
     <View style={styles.container}>
-      {/* Full-bleed background */}
-      <Image
-        source={{ uri: soundscape.imageUrl }}
-        style={styles.bgImage}
-        contentFit="cover"
-        transition={600}
-      />
-
-      {/* Heavy dark overlay — Pillowtalk style: image is subtle, text is king */}
+      {/* Full-screen gradient background — no image */}
       <LinearGradient
-        colors={['rgba(0,0,0,0.25)', 'rgba(0,0,0,0.6)', 'rgba(0,0,0,0.92)', '#000000']}
-        locations={[0, 0.25, 0.55, 1]}
+        colors={[soundscape.gradient[0], soundscape.gradient[1], '#000000']}
+        start={{ x: 0.2, y: 0 }}
+        end={{ x: 0.8, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
+
+      {/* Soft glow orb */}
+      <View style={[styles.glowOrb, { backgroundColor: accent }]} />
 
       {/* Top bar */}
       <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
@@ -108,7 +103,7 @@ export default function MixerScreen() {
           onPress={() => router.back()}
           style={({ pressed }) => [styles.iconBtn, pressed && { opacity: 0.6 }]}
         >
-          <IconSymbol name="chevron.left" size={20} color="rgba(255,255,255,0.7)" />
+          <IconSymbol name="chevron.left" size={20} color="rgba(255,255,255,0.6)" />
         </Pressable>
 
         <View style={styles.headerMeta}>
@@ -116,18 +111,16 @@ export default function MixerScreen() {
         </View>
 
         <View style={styles.headerActions}>
-          {/* Timer */}
           <Pressable
             onPress={() => setTimerSheetVisible(true)}
             style={({ pressed }) => [styles.iconBtn, pressed && { opacity: 0.6 }]}
           >
             {timerRemaining
-              ? <Text style={styles.timerText}>{timerRemaining}</Text>
-              : <IconSymbol name="timer" size={20} color="rgba(255,255,255,0.5)" />
+              ? <Text style={[styles.timerText, { color: accent }]}>{timerRemaining}</Text>
+              : <IconSymbol name="timer" size={20} color="rgba(255,255,255,0.4)" />
             }
           </Pressable>
 
-          {/* Favorite */}
           <Pressable
             onPress={() => {
               if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -135,7 +128,7 @@ export default function MixerScreen() {
             }}
             style={({ pressed }) => [styles.iconBtn, pressed && { opacity: 0.6 }]}
           >
-            <Text style={[styles.heartBtn, isFavorite && styles.heartActive]}>
+            <Text style={[styles.heartBtn, isFavorite && { color: accent }]}>
               {isFavorite ? '♥' : '♡'}
             </Text>
           </Pressable>
@@ -144,29 +137,30 @@ export default function MixerScreen() {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 32 }]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 40 }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Sound name — large, minimal, Pillowtalk-style */}
+        {/* Sound name */}
         <View style={styles.titleBlock}>
           <Text style={styles.soundName}>{soundscape.name}</Text>
           <Text style={styles.soundDesc}>{soundscape.description}</Text>
         </View>
 
-        {/* Play / Pause button — centered, minimal circle */}
+        {/* Play / Pause */}
         <View style={styles.playRow}>
           <Pressable
             onPress={handlePlayPause}
             style={({ pressed }) => [
               styles.playBtn,
-              (isActive && isPlaying) && styles.playBtnActive,
+              { borderColor: `${accent}50` },
+              (isActive && isPlaying) && { backgroundColor: accent, borderColor: accent },
               pressed && { opacity: 0.8, transform: [{ scale: 0.96 }] },
             ]}
           >
             <IconSymbol
               name={(isActive && isPlaying) ? 'pause.fill' : 'play.fill'}
-              size={28}
-              color={(isActive && isPlaying) ? '#000000' : '#C8B89A'}
+              size={26}
+              color={(isActive && isPlaying) ? '#000000' : accent}
             />
           </Pressable>
           <Text style={styles.playStatus}>
@@ -177,11 +171,10 @@ export default function MixerScreen() {
         {/* Divider */}
         <View style={styles.divider} />
 
-        {/* EQ Section label */}
+        {/* EQ Section */}
         <Text style={styles.sectionLabel}>Sound Mix</Text>
         <Text style={styles.sectionSub}>Drag each band to shape the sound</Text>
 
-        {/* EQ Sliders — horizontal scroll */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -193,7 +186,7 @@ export default function MixerScreen() {
               key={label}
               label={label}
               value={currentLevels[i] ?? 70}
-              accentColor="#C8B89A"
+              accentColor={accent}
               onChange={(val) => setLevel(i, val)}
             />
           ))}
@@ -205,7 +198,7 @@ export default function MixerScreen() {
         {/* Presets */}
         <Text style={styles.sectionLabel}>Presets</Text>
         <View style={styles.presetsRow}>
-          {soundscape.presets.map((preset, i) => (
+          {soundscape.presets.map((preset) => (
             <Pressable
               key={preset.name}
               onPress={() => {
@@ -214,10 +207,11 @@ export default function MixerScreen() {
               }}
               style={({ pressed }) => [
                 styles.presetChip,
+                { borderColor: `${accent}25` },
                 pressed && { opacity: 0.7 },
               ]}
             >
-              <Text style={styles.presetText}>{preset.name}</Text>
+              <Text style={[styles.presetText, { color: `${accent}BB` }]}>{preset.name}</Text>
             </Pressable>
           ))}
         </View>
@@ -228,7 +222,9 @@ export default function MixerScreen() {
         {/* Master Volume */}
         <View style={styles.volumeRow}>
           <Text style={styles.sectionLabel}>Volume</Text>
-          <Text style={styles.volumeValue}>{Math.round(isActive ? masterVolume : 80)}%</Text>
+          <Text style={[styles.volumeValue, { color: accent }]}>
+            {Math.round(isActive ? masterVolume : 80)}%
+          </Text>
         </View>
         <View style={styles.volumeTrack}>
           <Pressable
@@ -245,14 +241,18 @@ export default function MixerScreen() {
               <View
                 style={[
                   styles.volumeFill,
-                  { width: `${isActive ? masterVolume : 80}%` },
+                  { width: `${isActive ? masterVolume : 80}%`, backgroundColor: accent },
                 ]}
               />
             </View>
             <View
               style={[
                 styles.volumeThumb,
-                { left: `${isActive ? masterVolume : 80}%` },
+                {
+                  left: `${isActive ? masterVolume : 80}%`,
+                  backgroundColor: '#FFFFFF',
+                  shadowColor: accent,
+                },
               ]}
             />
           </Pressable>
@@ -263,7 +263,7 @@ export default function MixerScreen() {
       <TimerSheet
         visible={timerSheetVisible}
         onClose={() => setTimerSheetVisible(false)}
-        accentColor="#C8B89A"
+        accentColor={accent}
       />
     </View>
   );
@@ -274,12 +274,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000000',
   },
-  bgImage: {
+  glowOrb: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: height * 0.42,
+    top: -80,
+    right: -80,
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    opacity: 0.08,
   },
   topBar: {
     flexDirection: 'row',
@@ -300,11 +302,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerCategory: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: 'rgba(255,255,255,0.4)',
+    fontSize: 10,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.3)',
     textTransform: 'uppercase',
-    letterSpacing: 2,
+    letterSpacing: 2.5,
   },
   headerActions: {
     flexDirection: 'row',
@@ -313,38 +315,34 @@ const styles = StyleSheet.create({
   timerText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#C8B89A',
     minWidth: 36,
     textAlign: 'center',
   },
   heartBtn: {
     fontSize: 20,
-    color: 'rgba(255,255,255,0.35)',
-  },
-  heartActive: {
-    color: '#C8B89A',
+    color: 'rgba(255,255,255,0.3)',
   },
   scroll: {
     flex: 1,
   },
   scrollContent: {
     paddingHorizontal: 24,
-    paddingTop: 16,
+    paddingTop: 20,
   },
   titleBlock: {
     marginBottom: 28,
     gap: 8,
   },
   soundName: {
-    fontSize: 38,
+    fontSize: 40,
     fontWeight: '200',
     color: '#FFFFFF',
     letterSpacing: -0.5,
-    lineHeight: 44,
+    lineHeight: 46,
   },
   soundDesc: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.4)',
+    color: 'rgba(255,255,255,0.35)',
     lineHeight: 20,
     letterSpacing: 0.2,
   },
@@ -355,41 +353,35 @@ const styles = StyleSheet.create({
     marginBottom: 28,
   },
   playBtn: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 62,
+    height: 62,
+    borderRadius: 31,
     borderWidth: 1.5,
-    borderColor: 'rgba(200,184,154,0.4)',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(200,184,154,0.06)',
-  },
-  playBtnActive: {
-    backgroundColor: '#C8B89A',
-    borderColor: '#C8B89A',
+    backgroundColor: 'rgba(255,255,255,0.04)',
   },
   playStatus: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.35)',
+    color: 'rgba(255,255,255,0.3)',
     letterSpacing: 1.5,
-    textTransform: 'lowercase',
   },
   divider: {
     height: 0.5,
-    backgroundColor: 'rgba(255,255,255,0.07)',
+    backgroundColor: 'rgba(255,255,255,0.06)',
     marginVertical: 24,
   },
   sectionLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '600',
-    color: 'rgba(255,255,255,0.35)',
+    color: 'rgba(255,255,255,0.3)',
     textTransform: 'uppercase',
     letterSpacing: 2,
     marginBottom: 6,
   },
   sectionSub: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.2)',
+    color: 'rgba(255,255,255,0.18)',
     letterSpacing: 0.3,
     marginBottom: 20,
   },
@@ -412,13 +404,11 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: 'rgba(255,255,255,0.03)',
   },
   presetText: {
     fontSize: 13,
     fontWeight: '400',
-    color: 'rgba(255,255,255,0.6)',
     letterSpacing: 0.5,
   },
   volumeRow: {
@@ -429,7 +419,6 @@ const styles = StyleSheet.create({
   },
   volumeValue: {
     fontSize: 13,
-    color: '#C8B89A',
     fontWeight: '500',
     letterSpacing: 1,
   },
@@ -443,28 +432,25 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   volumeTrackBg: {
-    height: 3,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 2,
+    height: 2,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 1,
     overflow: 'hidden',
   },
   volumeFill: {
     height: '100%',
-    backgroundColor: '#C8B89A',
-    borderRadius: 2,
+    borderRadius: 1,
   },
   volumeThumb: {
     position: 'absolute',
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: '#C8B89A',
-    top: 7,
-    marginLeft: -9,
-    shadowColor: '#C8B89A',
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    top: 8,
+    marginLeft: -8,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 6,
+    shadowOpacity: 0.6,
+    shadowRadius: 8,
     elevation: 4,
   },
 });

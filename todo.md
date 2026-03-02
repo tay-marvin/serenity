@@ -44,3 +44,10 @@
 - [x] Redesign Mixer screen: clean EQ sliders, warm cream accent, intimate dark feel
 - [x] Redesign MiniPlayer: slim frosted dark bar, warm accent dot
 - [x] Update SoundCard: full-bleed image, heavy gradient overlay, large light-weight name text
+
+## Remove Images — Pure Gradient Design
+
+- [x] Add gradient color pairs to each soundscape in sounds.ts
+- [x] Replace Image + LinearGradient overlay in Home screen cards with pure gradient
+- [x] Replace Image background in Mixer screen with pure gradient
+- [x] Remove expo-image imports from Home, Favorites, and Mixer screens

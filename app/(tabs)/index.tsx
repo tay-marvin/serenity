@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback } from 'react';
 import {
   FlatList,
   StyleSheet,
@@ -6,19 +6,15 @@ import {
   View,
   Pressable,
   Platform,
-  Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import { useAudioEngine } from '@/lib/audio-engine';
 import { SOUNDSCAPES } from '@/lib/sounds';
 import * as Haptics from 'expo-haptics';
 
-const { width } = Dimensions.get('window');
-const CARD_HEIGHT = 220;
+const CARD_HEIGHT = 200;
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -37,45 +33,44 @@ export default function HomeScreen() {
     router.push({ pathname: '/mixer/[id]' as any, params: { id } });
   }, [router]);
 
-  const tabBarH = Platform.OS === 'web' ? 60 : 56 + insets.bottom;
-  const miniPlayerH = activeSoundscapeId ? 68 : 0;
+  const tabBarH = Platform.OS === 'web' ? 60 : 48 + insets.bottom;
+  const miniPlayerH = activeSoundscapeId ? 74 : 0;
 
   const renderItem = useCallback(({ item }: { item: typeof SOUNDSCAPES[0] }) => {
     const active = activeSoundscapeId === item.id && isPlaying;
     const fav = favorites.includes(item.id);
+
     return (
       <Pressable
         onPress={() => handlePress(item.id)}
-        style={({ pressed }) => [styles.card, pressed && { opacity: 0.88 }]}
+        style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}
       >
-        {/* Background image */}
-        <Image
-          source={{ uri: item.imageUrl }}
-          style={StyleSheet.absoluteFill}
-          contentFit="cover"
-          transition={400}
-        />
-
-        {/* Dark gradient overlay */}
+        {/* Pure gradient background — no images */}
         <LinearGradient
-          colors={['rgba(0,0,0,0.08)', 'rgba(0,0,0,0.55)', 'rgba(0,0,0,0.82)']}
-          locations={[0, 0.5, 1]}
+          colors={item.gradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFill}
         />
 
-        {/* Active playing glow border */}
+        {/* Subtle noise texture overlay via semi-transparent border */}
         {active && (
-          <View style={[styles.activeBorder, { borderColor: '#C8B89A' }]} />
+          <View style={[styles.activeBorder, { borderColor: item.color }]} />
         )}
+
+        {/* Soft color glow in top-right corner */}
+        <View style={[styles.glow, { backgroundColor: item.color }]} />
 
         {/* Content */}
         <View style={styles.cardContent}>
           {/* Top row */}
           <View style={styles.cardTop}>
-            <View style={styles.categoryPill}>
-              <Text style={styles.categoryPillText}>{item.category}</Text>
+            <View style={[styles.categoryPill, { borderColor: `${item.color}30` }]}>
+              <Text style={[styles.categoryPillText, { color: `${item.color}CC` }]}>
+                {item.category.toUpperCase()}
+              </Text>
             </View>
-            {fav && <Text style={styles.heartIcon}>♥</Text>}
+            {fav && <Text style={[styles.heartIcon, { color: item.color }]}>♥</Text>}
           </View>
 
           {/* Bottom */}
@@ -85,13 +80,10 @@ export default function HomeScreen() {
 
             {active && (
               <View style={styles.playingRow}>
-                {[1,2,3,4,5].map(i => (
-                  <View
-                    key={i}
-                    style={[styles.bar, { height: 4 + (i % 3) * 5, backgroundColor: '#C8B89A' }]}
-                  />
+                {[8, 14, 6, 12, 10].map((h, i) => (
+                  <View key={i} style={[styles.bar, { height: h, backgroundColor: item.color }]} />
                 ))}
-                <Text style={styles.playingLabel}>Playing</Text>
+                <Text style={[styles.playingLabel, { color: item.color }]}>Playing</Text>
               </View>
             )}
           </View>
@@ -104,7 +96,7 @@ export default function HomeScreen() {
     <View style={styles.root}>
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-        <Text style={styles.appName}>Serenity</Text>
+        <Text style={styles.appName}>S E R E N I T Y</Text>
         <Text style={styles.appTagline}>tune your mind</Text>
 
         {/* Category pills */}
@@ -135,7 +127,7 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
           styles.list,
-          { paddingTop: insets.top + 130, paddingBottom: tabBarH + miniPlayerH + 16 },
+          { paddingTop: insets.top + 128, paddingBottom: tabBarH + miniPlayerH + 16 },
         ]}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
       />
@@ -160,32 +152,29 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(255,255,255,0.06)',
   },
   appName: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: '300',
     color: '#F5F0E8',
-    letterSpacing: 6,
-    textTransform: 'uppercase',
+    letterSpacing: 8,
     paddingHorizontal: 24,
-    marginBottom: 2,
+    marginBottom: 3,
   },
   appTagline: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#6B6560',
     letterSpacing: 3,
-    textTransform: 'lowercase',
     paddingHorizontal: 24,
     marginBottom: 16,
   },
   pills: {
     paddingHorizontal: 20,
-    gap: 8,
   },
   pill: {
     paddingHorizontal: 14,
     paddingVertical: 7,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(255,255,255,0.08)',
     marginRight: 8,
   },
   pillActive: {
@@ -194,9 +183,9 @@ const styles = StyleSheet.create({
   },
   pillText: {
     fontSize: 12,
-    fontWeight: '500',
-    color: 'rgba(255,255,255,0.4)',
-    letterSpacing: 0.5,
+    fontWeight: '400',
+    color: 'rgba(255,255,255,0.35)',
+    letterSpacing: 0.3,
   },
   pillTextActive: {
     color: '#000000',
@@ -206,23 +195,32 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   separator: {
-    height: 12,
+    height: 10,
   },
   card: {
     width: '100%',
     height: CARD_HEIGHT,
-    borderRadius: 20,
+    borderRadius: 18,
     overflow: 'hidden',
-    backgroundColor: '#111111',
+    backgroundColor: '#0a0a0a',
   },
   activeBorder: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: 20,
-    borderWidth: 1.5,
+    borderRadius: 18,
+    borderWidth: 1,
+  },
+  glow: {
+    position: 'absolute',
+    top: -30,
+    right: -30,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    opacity: 0.12,
   },
   cardContent: {
     flex: 1,
-    padding: 18,
+    padding: 20,
     justifyContent: 'space-between',
   },
   cardTop: {
@@ -233,52 +231,47 @@ const styles = StyleSheet.create({
   categoryPill: {
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 10,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(0,0,0,0.2)',
   },
   categoryPillText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.7)',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 1.5,
   },
   heartIcon: {
     fontSize: 14,
-    color: '#C8B89A',
   },
   cardBottom: {
-    gap: 4,
+    gap: 5,
   },
   cardName: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '300',
     color: '#FFFFFF',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
   cardDesc: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.45)',
-    letterSpacing: 0.3,
+    color: 'rgba(255,255,255,0.4)',
+    letterSpacing: 0.2,
   },
   playingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    marginTop: 6,
+    marginTop: 8,
   },
   bar: {
     width: 3,
     borderRadius: 2,
-    opacity: 0.9,
+    opacity: 0.85,
   },
   playingLabel: {
-    fontSize: 11,
-    color: '#C8B89A',
-    fontWeight: '500',
-    letterSpacing: 1,
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 1.5,
     textTransform: 'uppercase',
     marginLeft: 6,
   },

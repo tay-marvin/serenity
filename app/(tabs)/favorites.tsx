@@ -6,17 +6,15 @@ import {
   View,
   Pressable,
   Platform,
-  Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAudioEngine } from '@/lib/audio-engine';
 import { SOUNDSCAPES } from '@/lib/sounds';
 import * as Haptics from 'expo-haptics';
 
-const CARD_HEIGHT = 220;
+const CARD_HEIGHT = 200;
 
 export default function FavoritesScreen() {
   const router = useRouter();
@@ -31,33 +29,32 @@ export default function FavoritesScreen() {
   }, [router]);
 
   const tabBarH = Platform.OS === 'web' ? 60 : 48 + insets.bottom;
-  const miniPlayerH = activeSoundscapeId ? 68 : 0;
+  const miniPlayerH = activeSoundscapeId ? 74 : 0;
 
   const renderItem = useCallback(({ item }: { item: typeof SOUNDSCAPES[0] }) => {
     const active = activeSoundscapeId === item.id && isPlaying;
     return (
       <Pressable
         onPress={() => handlePress(item.id)}
-        style={({ pressed }) => [styles.card, pressed && { opacity: 0.88 }]}
+        style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}
       >
-        <Image
-          source={{ uri: item.imageUrl }}
-          style={StyleSheet.absoluteFill}
-          contentFit="cover"
-          transition={400}
-        />
         <LinearGradient
-          colors={['rgba(0,0,0,0.08)', 'rgba(0,0,0,0.55)', 'rgba(0,0,0,0.82)']}
-          locations={[0, 0.5, 1]}
+          colors={item.gradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFill}
         />
-        {active && <View style={styles.activeBorder} />}
+        {active && <View style={[styles.activeBorder, { borderColor: item.color }]} />}
+        <View style={[styles.glow, { backgroundColor: item.color }]} />
+
         <View style={styles.cardContent}>
           <View style={styles.cardTop}>
-            <View style={styles.categoryPill}>
-              <Text style={styles.categoryPillText}>{item.category}</Text>
+            <View style={[styles.categoryPill, { borderColor: `${item.color}30` }]}>
+              <Text style={[styles.categoryPillText, { color: `${item.color}CC` }]}>
+                {item.category.toUpperCase()}
+              </Text>
             </View>
-            <Text style={styles.heartIcon}>♥</Text>
+            <Text style={[styles.heartIcon, { color: item.color }]}>♥</Text>
           </View>
           <View style={styles.cardBottom}>
             <Text style={styles.cardName}>{item.name}</Text>
@@ -72,9 +69,11 @@ export default function FavoritesScreen() {
     <View style={styles.root}>
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-        <Text style={styles.appName}>Saved</Text>
+        <Text style={styles.appName}>S A V E D</Text>
         <Text style={styles.appTagline}>
-          {favSounds.length === 0 ? 'your saved sounds' : `${favSounds.length} soundscape${favSounds.length !== 1 ? 's' : ''}`}
+          {favSounds.length === 0
+            ? 'your saved sounds'
+            : `${favSounds.length} soundscape${favSounds.length !== 1 ? 's' : ''}`}
         </Text>
       </View>
 
@@ -96,7 +95,7 @@ export default function FavoritesScreen() {
             styles.list,
             { paddingTop: insets.top + 100, paddingBottom: tabBarH + miniPlayerH + 16 },
           ]}
-          ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+          ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
         />
       )}
     </View>
@@ -117,22 +116,20 @@ const styles = StyleSheet.create({
     paddingBottom: 14,
     paddingHorizontal: 24,
     backgroundColor: '#000000',
-    borderBottomWidth: 0.5,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: 'rgba(255,255,255,0.06)',
   },
   appName: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: '300',
     color: '#F5F0E8',
-    letterSpacing: 6,
-    textTransform: 'uppercase',
-    marginBottom: 2,
+    letterSpacing: 8,
+    marginBottom: 3,
   },
   appTagline: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#6B6560',
     letterSpacing: 3,
-    textTransform: 'lowercase',
   },
   list: {
     paddingHorizontal: 16,
@@ -140,19 +137,27 @@ const styles = StyleSheet.create({
   card: {
     width: '100%',
     height: CARD_HEIGHT,
-    borderRadius: 20,
+    borderRadius: 18,
     overflow: 'hidden',
-    backgroundColor: '#111111',
+    backgroundColor: '#0a0a0a',
   },
   activeBorder: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: '#C8B89A',
+    borderRadius: 18,
+    borderWidth: 1,
+  },
+  glow: {
+    position: 'absolute',
+    top: -30,
+    right: -30,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    opacity: 0.12,
   },
   cardContent: {
     flex: 1,
-    padding: 18,
+    padding: 20,
     justifyContent: 'space-between',
   },
   cardTop: {
@@ -163,35 +168,31 @@ const styles = StyleSheet.create({
   categoryPill: {
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 10,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(0,0,0,0.2)',
   },
   categoryPillText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.7)',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 1.5,
   },
   heartIcon: {
     fontSize: 14,
-    color: '#C8B89A',
   },
   cardBottom: {
-    gap: 4,
+    gap: 5,
   },
   cardName: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '300',
     color: '#FFFFFF',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
   cardDesc: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.45)',
-    letterSpacing: 0.3,
+    color: 'rgba(255,255,255,0.4)',
+    letterSpacing: 0.2,
   },
   empty: {
     flex: 1,
@@ -202,18 +203,18 @@ const styles = StyleSheet.create({
   },
   emptySymbol: {
     fontSize: 40,
-    color: 'rgba(255,255,255,0.15)',
+    color: 'rgba(255,255,255,0.12)',
   },
   emptyTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '300',
-    color: 'rgba(255,255,255,0.35)',
-    letterSpacing: 2,
+    color: 'rgba(255,255,255,0.3)',
+    letterSpacing: 3,
     textTransform: 'uppercase',
   },
   emptyDesc: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.25)',
+    color: 'rgba(255,255,255,0.2)',
     textAlign: 'center',
     lineHeight: 20,
     letterSpacing: 0.3,

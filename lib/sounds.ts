@@ -15,6 +15,7 @@ export interface Soundscape {
   description: string;
   imageUrl: string;
   color: string; // dominant accent color for this soundscape
+  gradient: [string, string, string]; // top, mid, bottom gradient colors
   audioUrl: string; // single looping audio track
   presets: EQPreset[];
 }
@@ -36,6 +37,7 @@ export const SOUNDSCAPES: Soundscape[] = [
     description: 'Soft rainfall on leaves and pavement. Perfect for sleep and focus.',
     imageUrl: 'https://images.unsplash.com/photo-1501691223387-dd0500403074?w=800&q=80',
     color: '#60A5FA',
+    gradient: ['#0a1628', '#0d2240', '#060e1a'],
     audioUrl: 'https://www.orangefreesounds.com/wp-content/uploads/2018/04/Gentle-rain-loop.mp3',
     presets: [
       { name: 'Drizzle', levels: [20, 30, 50, 60, 65, 60, 55, 45, 35, 25] },
@@ -51,6 +53,7 @@ export const SOUNDSCAPES: Soundscape[] = [
     description: 'Intense rainfall with deep rumbling undertones. Powerful white noise.',
     imageUrl: 'https://images.unsplash.com/photo-1534274988757-a28bf1a57c17?w=800&q=80',
     color: '#818CF8',
+    gradient: ['#0e0a28', '#151040', '#080612'],
     audioUrl: 'https://www.orangefreesounds.com/wp-content/uploads/2022/03/Heavy-rain-sound-effect-loop.mp3',
     presets: [
       { name: 'Storm', levels: [85, 90, 85, 75, 65, 55, 45, 35, 30, 25] },
@@ -66,6 +69,7 @@ export const SOUNDSCAPES: Soundscape[] = [
     description: 'Rain and rolling thunder. Deep, dramatic, and immersive.',
     imageUrl: 'https://images.unsplash.com/photo-1605727216801-e27ce1d0cc28?w=800&q=80',
     color: '#A78BFA',
+    gradient: ['#12082e', '#1a0a3e', '#080418'],
     audioUrl: 'https://www.orangefreesounds.com/wp-content/uploads/2021/01/Rain-and-thunder-sound-effect-loop.mp3',
     presets: [
       { name: 'Distant', levels: [60, 65, 60, 55, 50, 45, 40, 35, 30, 25] },
@@ -81,6 +85,7 @@ export const SOUNDSCAPES: Soundscape[] = [
     description: 'Rhythmic ocean waves washing ashore. Calming and meditative.',
     imageUrl: 'https://images.unsplash.com/photo-1505118380757-91f5f5632de0?w=800&q=80',
     color: '#34D399',
+    gradient: ['#041a14', '#062a1e', '#020e0a'],
     audioUrl: 'https://orangefreesounds.com/wp-content/uploads/2022/07/Ocean-waves-sound-effect.mp3',
     presets: [
       { name: 'Calm Sea', levels: [30, 40, 55, 65, 70, 68, 62, 55, 45, 35] },
@@ -96,6 +101,7 @@ export const SOUNDSCAPES: Soundscape[] = [
     description: 'Lush forest ambience with rustling leaves and distant birds.',
     imageUrl: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=800&q=80',
     color: '#4ADE80',
+    gradient: ['#061a0a', '#0a2810', '#030e05'],
     audioUrl: 'https://www.orangefreesounds.com/wp-content/uploads/2017/09/Forest-ambience.mp3',
     presets: [
       { name: 'Dawn', levels: [20, 30, 45, 60, 70, 75, 72, 65, 55, 45] },
@@ -111,6 +117,7 @@ export const SOUNDSCAPES: Soundscape[] = [
     description: 'Cheerful birdsong in a peaceful outdoor setting.',
     imageUrl: 'https://images.unsplash.com/photo-1444464666168-49d633b86797?w=800&q=80',
     color: '#FCD34D',
+    gradient: ['#1a1404', '#28200a', '#0e0a02'],
     audioUrl: 'https://www.orangefreesounds.com/wp-content/uploads/2018/10/Birds-chirping-sound-effect.mp3',
     presets: [
       { name: 'Morning', levels: [15, 20, 35, 55, 72, 80, 78, 72, 62, 52] },
@@ -126,6 +133,7 @@ export const SOUNDSCAPES: Soundscape[] = [
     description: 'Crackling campfire with warm, enveloping tones.',
     imageUrl: 'https://images.unsplash.com/photo-1510672981848-a1c4f1cb5ccf?w=800&q=80',
     color: '#FB923C',
+    gradient: ['#1e0a02', '#2e1204', '#100601'],
     audioUrl: 'https://www.orangefreesounds.com/wp-content/uploads/2017/10/Campfire-sound.mp3',
     presets: [
       { name: 'Embers', levels: [55, 60, 65, 62, 58, 52, 45, 38, 30, 22] },
@@ -141,6 +149,7 @@ export const SOUNDSCAPES: Soundscape[] = [
     description: 'Gentle wind flowing through trees and open spaces.',
     imageUrl: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800&q=80',
     color: '#94A3B8',
+    gradient: ['#0e1018', '#141820', '#08090e'],
     audioUrl: 'https://www.orangefreesounds.com/wp-content/uploads/2014/11/Wind-sound.mp3',
     presets: [
       { name: 'Breeze', levels: [15, 25, 40, 55, 65, 70, 68, 62, 52, 42] },
@@ -156,6 +165,7 @@ export const SOUNDSCAPES: Soundscape[] = [
     description: 'Babbling brook flowing over smooth stones. Refreshing and clear.',
     imageUrl: 'https://images.unsplash.com/photo-1501854140801-50d01698950b?w=800&q=80',
     color: '#22D3EE',
+    gradient: ['#041820', '#062430', '#020c12'],
     audioUrl: 'https://orangefreesounds.com/wp-content/uploads/2024/08/Creek-sound-effect.mp3',
     presets: [
       { name: 'Trickle', levels: [15, 22, 38, 55, 68, 75, 72, 65, 55, 45] },
@@ -171,6 +181,7 @@ export const SOUNDSCAPES: Soundscape[] = [
     description: 'Pure white noise for deep focus and blocking distractions.',
     imageUrl: 'https://images.unsplash.com/photo-1518655048521-f130df041f66?w=800&q=80',
     color: '#E2E8F0',
+    gradient: ['#101214', '#181c20', '#080a0c'],
     audioUrl: 'https://orangefreesounds.com/wp-content/uploads/2023/07/Free-white-noise.mp3',
     presets: [
       { name: 'Pure', levels: [70, 70, 70, 70, 70, 70, 70, 70, 70, 70] },
@@ -186,6 +197,7 @@ export const SOUNDSCAPES: Soundscape[] = [
     description: 'Deep, warm brown noise. Richer and lower than white noise.',
     imageUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&q=80',
     color: '#D97706',
+    gradient: ['#1a0e02', '#241604', '#0e0801'],
     audioUrl: 'https://www.orangefreesounds.com/wp-content/uploads/2014/11/Brown-noise.mp3',
     presets: [
       { name: 'Deep', levels: [95, 88, 78, 65, 52, 42, 32, 25, 20, 15] },
@@ -201,6 +213,7 @@ export const SOUNDSCAPES: Soundscape[] = [
     description: 'Birds singing alongside a gentle forest stream. Pure nature.',
     imageUrl: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=800&q=80',
     color: '#86EFAC',
+    gradient: ['#081a0e', '#0e2816', '#040e07'],
     audioUrl: 'https://orangefreesounds.com/wp-content/uploads/2026/02/Bird-calls-forest-stream-sound-effect.mp3',
     presets: [
       { name: 'Morning', levels: [20, 30, 45, 60, 70, 75, 72, 68, 60, 50] },
