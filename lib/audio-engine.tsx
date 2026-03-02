@@ -15,6 +15,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const STORAGE_KEY = 'serenity_state';
 const FAVORITES_KEY = 'serenity_favorites';
 
+// App icon URL used as lock screen artwork
+const APP_ARTWORK_URL =
+  'https://d2xsxph8kpxj0f.cloudfront.net/310519663324303301/BrTNGmudEFZLSEsVVpNvpk/serenity-icon-GThH38iQV33v9GWNBuPiQY.png';
+
 export interface AudioEngineState {
   activeSoundscapeId: string | null;
   isPlaying: boolean;
@@ -57,15 +61,14 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
     bellEnabled: false,
   });
 
-  // We use a single audio player for simplicity — plays one looping sound at a time.
-  // The "EQ" effect is simulated by cross-fading between different audio tracks
-  // based on the dominant slider values.
   const playerRef = useRef<AudioPlayer | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bellRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const bellPlayerRef = useRef<AudioPlayer | null>(null);
   const fadeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const currentVolumeRef = useRef(0.8);
+  // Track active soundscape id in a ref so callbacks can access it without stale closure
+  const activeSoundscapeIdRef = useRef<string | null>(null);
 
   // Load persisted state
   useEffect(() => {
@@ -90,16 +93,24 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
     })();
   }, []);
 
-  // Setup audio mode
+  // Setup audio mode — background playback + doNotMix required for lock screen controls
   useEffect(() => {
     if (Platform.OS !== 'web') {
-      setAudioModeAsync({ playsInSilentMode: true }).catch(() => {});
+      setAudioModeAsync({
+        playsInSilentMode: true,
+        shouldPlayInBackground: true,
+        interruptionMode: 'doNotMix',
+      }).catch(() => {});
     }
   }, []);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      // Deregister lock screen before removing player
+      if (playerRef.current && Platform.OS !== 'web') {
+        try { playerRef.current.setActiveForLockScreen(false); } catch {}
+      }
       playerRef.current?.remove();
       bellPlayerRef.current?.remove();
       if (timerRef.current) clearTimeout(timerRef.current);
@@ -113,9 +124,33 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
     return (avgLevel / 100) * (masterVolume / 100);
   }, []);
 
+  /**
+   * Register the current player as the active lock screen player with
+   * the soundscape name as the Now Playing title.
+   */
+  const activateLockScreen = useCallback((player: AudioPlayer, soundscape: Soundscape) => {
+    if (Platform.OS === 'web') return;
+    try {
+      player.setActiveForLockScreen(true, {
+        title: soundscape.name,
+        artist: 'Serenity',
+        albumTitle: soundscape.category,
+        artworkUrl: APP_ARTWORK_URL,
+      });
+    } catch (e) {
+      // Gracefully ignore — lock screen controls are a nice-to-have
+      console.warn('Lock screen activation failed:', e);
+    }
+  }, []);
+
   const play = useCallback(async (soundscapeId: string) => {
     const soundscape = SOUNDSCAPES.find(s => s.id === soundscapeId);
     if (!soundscape) return;
+
+    // Deregister previous player from lock screen before removing it
+    if (playerRef.current && Platform.OS !== 'web') {
+      try { playerRef.current.setActiveForLockScreen(false); } catch {}
+    }
 
     // Stop existing player
     if (playerRef.current) {
@@ -123,17 +158,18 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
       playerRef.current = null;
     }
 
-    // Use the single audio URL for this soundscape
-    const audioUrl = soundscape.audioUrl;
-    
     try {
-      const player = createAudioPlayer({ uri: audioUrl });
+      const player = createAudioPlayer({ uri: soundscape.audioUrl });
       player.loop = true;
       const vol = getEffectiveVolume(state.levels, state.masterVolume);
       player.volume = vol;
       player.play();
       playerRef.current = player;
       currentVolumeRef.current = vol;
+      activeSoundscapeIdRef.current = soundscapeId;
+
+      // Register with lock screen / Control Center
+      activateLockScreen(player, soundscape);
 
       setState(prev => ({
         ...prev,
@@ -143,7 +179,7 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
     } catch (e) {
       console.error('Audio play error:', e);
     }
-  }, [state.levels, state.masterVolume, getEffectiveVolume]);
+  }, [state.levels, state.masterVolume, getEffectiveVolume, activateLockScreen]);
 
   const pause = useCallback(() => {
     if (playerRef.current) {
@@ -155,9 +191,17 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
   const resume = useCallback(() => {
     if (playerRef.current) {
       playerRef.current.play();
+      // Re-register lock screen in case it was cleared
+      const id = activeSoundscapeIdRef.current;
+      if (id && Platform.OS !== 'web') {
+        const soundscape = SOUNDSCAPES.find(s => s.id === id);
+        if (soundscape && playerRef.current) {
+          activateLockScreen(playerRef.current, soundscape);
+        }
+      }
     }
     setState(prev => ({ ...prev, isPlaying: true }));
-  }, []);
+  }, [activateLockScreen]);
 
   const setLevel = useCallback((bandIndex: number, value: number) => {
     setState(prev => {
@@ -230,11 +274,17 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
           if (playerRef.current) playerRef.current.volume = Math.max(0, newVol);
           if (step >= steps) {
             clearInterval(fadeIntervalRef.current!);
+            if (playerRef.current && Platform.OS !== 'web') {
+              try { playerRef.current.setActiveForLockScreen(false); } catch {}
+            }
             playerRef.current?.pause();
             setState(prev => ({ ...prev, isPlaying: false, timerMinutes: null, timerEndTime: null }));
           }
         }, 1000);
       } else {
+        if (playerRef.current && Platform.OS !== 'web') {
+          try { playerRef.current.setActiveForLockScreen(false); } catch {}
+        }
         playerRef.current?.pause();
         setState(prev => ({ ...prev, isPlaying: false, timerMinutes: null, timerEndTime: null }));
       }
@@ -253,7 +303,6 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
 
     if (enabled) {
       bellRef.current = setInterval(() => {
-        // Play the verified meditation bell MP3 (orangefreesounds, 17s, 200 OK)
         try {
           const bellPlayer = createAudioPlayer({
             uri: 'https://www.orangefreesounds.com/wp-content/uploads/2018/03/Meditation-bell-sound.mp3',

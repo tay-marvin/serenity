@@ -82,3 +82,12 @@
 - [x] Add bell toggle + interval selector directly on the Mixer screen
 - [x] Bell plays at selected interval while ambient audio is running
 - [x] Bell state persists across sessions
+
+## Background Audio Controls
+
+- [x] Read expo-audio docs for Now Playing / remote control API
+- [x] Set Now Playing metadata (title, artist, artwork) when sound starts
+- [x] Update Now Playing state on play/pause/stop
+- [x] Handle remote control events (play, pause via setActiveForLockScreen)
+- [x] Configure audio session for background playback on iOS (shouldPlayInBackground + doNotMix)
+- [x] Verify app.config.ts has enableBackgroundPlayback: true in expo-audio plugin
