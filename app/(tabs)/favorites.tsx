@@ -9,12 +9,9 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useAudioEngine } from '@/lib/audio-engine';
 import { SOUNDSCAPES } from '@/lib/sounds';
 import * as Haptics from 'expo-haptics';
-
-const CARD_HEIGHT = 200;
 
 export default function FavoritesScreen() {
   const router = useRouter();
@@ -22,45 +19,37 @@ export default function FavoritesScreen() {
   const { activeSoundscapeId, isPlaying, favorites } = useAudioEngine();
 
   const favSounds = SOUNDSCAPES.filter(s => favorites.includes(s.id));
+  const tabBarH = Platform.OS === 'web' ? 60 : 48 + insets.bottom;
+  const miniPlayerH = activeSoundscapeId ? 80 : 0;
 
   const handlePress = useCallback((id: string) => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push({ pathname: '/mixer/[id]' as any, params: { id } });
   }, [router]);
 
-  const tabBarH = Platform.OS === 'web' ? 60 : 48 + insets.bottom;
-  const miniPlayerH = activeSoundscapeId ? 74 : 0;
-
   const renderItem = useCallback(({ item }: { item: typeof SOUNDSCAPES[0] }) => {
     const active = activeSoundscapeId === item.id && isPlaying;
     return (
       <Pressable
         onPress={() => handlePress(item.id)}
-        style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}
+        style={({ pressed }) => [styles.row, pressed && { opacity: 0.6 }]}
       >
-        <LinearGradient
-          colors={item.gradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
-        {active && <View style={[styles.activeBorder, { borderColor: item.color }]} />}
-        <View style={[styles.glow, { backgroundColor: item.color }]} />
-
-        <View style={styles.cardContent}>
-          <View style={styles.cardTop}>
-            <View style={[styles.categoryPill, { borderColor: `${item.color}30` }]}>
-              <Text style={[styles.categoryPillText, { color: `${item.color}CC` }]}>
-                {item.category.toUpperCase()}
-              </Text>
-            </View>
-            <Text style={[styles.heartIcon, { color: item.color }]}>♥</Text>
-          </View>
-          <View style={styles.cardBottom}>
-            <Text style={styles.cardName}>{item.name}</Text>
-            <Text style={styles.cardDesc} numberOfLines={1}>{item.description}</Text>
+        <View style={styles.rowInner}>
+          <Text style={[styles.soundName, { color: item.color }]} numberOfLines={1}>
+            {item.name}
+          </Text>
+          <View style={styles.rowMeta}>
+            <Text style={styles.categoryLabel}>{item.category}</Text>
+            {active && (
+              <View style={styles.playingDots}>
+                {[5, 9, 6, 11, 7].map((h, i) => (
+                  <View key={i} style={[styles.bar, { height: h, backgroundColor: item.color }]} />
+                ))}
+              </View>
+            )}
           </View>
         </View>
+        <View style={styles.separator} />
       </Pressable>
     );
   }, [activeSoundscapeId, isPlaying, handlePress]);
@@ -68,21 +57,18 @@ export default function FavoritesScreen() {
   return (
     <View style={styles.root}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-        <Text style={styles.appName}>S A V E D</Text>
-        <Text style={styles.appTagline}>
-          {favSounds.length === 0
-            ? 'your saved sounds'
-            : `${favSounds.length} soundscape${favSounds.length !== 1 ? 's' : ''}`}
+      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
+        <Text style={styles.appTitle}>saved</Text>
+        <Text style={styles.appSub}>
+          {favSounds.length === 0 ? 'your favourites' : `${favSounds.length} sound${favSounds.length !== 1 ? 's' : ''}`}
         </Text>
       </View>
 
       {favSounds.length === 0 ? (
-        <View style={[styles.empty, { paddingTop: insets.top + 120 }]}>
-          <Text style={styles.emptySymbol}>♡</Text>
-          <Text style={styles.emptyTitle}>Nothing saved yet</Text>
+        <View style={[styles.empty, { paddingTop: insets.top + 130 }]}>
+          <Text style={styles.emptyTitle}>nothing here yet</Text>
           <Text style={styles.emptyDesc}>
-            Open any sound and tap the heart to save it here.
+            Open any sound and tap the heart to save it.
           </Text>
         </View>
       ) : (
@@ -93,9 +79,8 @@ export default function FavoritesScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[
             styles.list,
-            { paddingTop: insets.top + 100, paddingBottom: tabBarH + miniPlayerH + 16 },
+            { paddingTop: insets.top + 110, paddingBottom: tabBarH + miniPlayerH + 24 },
           ]}
-          ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
         />
       )}
     </View>
@@ -113,110 +98,81 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 20,
-    paddingBottom: 14,
+    paddingBottom: 16,
     paddingHorizontal: 24,
     backgroundColor: '#000000',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
   },
-  appName: {
-    fontSize: 22,
+  appTitle: {
+    fontSize: 34,
     fontWeight: '300',
-    color: '#F5F0E8',
-    letterSpacing: 8,
-    marginBottom: 3,
+    color: '#F5F5F0',
+    letterSpacing: -0.5,
+    marginBottom: 2,
   },
-  appTagline: {
-    fontSize: 11,
-    color: '#6B6560',
-    letterSpacing: 3,
+  appSub: {
+    fontSize: 13,
+    color: '#444444',
+    letterSpacing: 0.5,
   },
   list: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 24,
   },
-  card: {
-    width: '100%',
-    height: CARD_HEIGHT,
-    borderRadius: 18,
-    overflow: 'hidden',
-    backgroundColor: '#0a0a0a',
+  row: {
+    paddingVertical: 6,
   },
-  activeBorder: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: 18,
-    borderWidth: 1,
-  },
-  glow: {
-    position: 'absolute',
-    top: -30,
-    right: -30,
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    opacity: 0.12,
-  },
-  cardContent: {
-    flex: 1,
-    padding: 20,
-    justifyContent: 'space-between',
-  },
-  cardTop: {
+  rowInner: {
+    paddingVertical: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  categoryPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    borderWidth: 1,
-    backgroundColor: 'rgba(0,0,0,0.2)',
-  },
-  categoryPillText: {
-    fontSize: 9,
-    fontWeight: '700',
-    letterSpacing: 1.5,
-  },
-  heartIcon: {
-    fontSize: 14,
-  },
-  cardBottom: {
-    gap: 5,
-  },
-  cardName: {
-    fontSize: 24,
+  soundName: {
+    fontSize: 28,
     fontWeight: '300',
-    color: '#FFFFFF',
-    letterSpacing: 0.3,
+    letterSpacing: -0.3,
+    flex: 1,
   },
-  cardDesc: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.4)',
-    letterSpacing: 0.2,
+  rowMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginLeft: 12,
+  },
+  categoryLabel: {
+    fontSize: 11,
+    color: '#333333',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  playingDots: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  bar: {
+    width: 2.5,
+    borderRadius: 2,
+    opacity: 0.9,
+  },
+  separator: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: '#1A1A1A',
   },
   empty: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 48,
-    gap: 12,
-  },
-  emptySymbol: {
-    fontSize: 40,
-    color: 'rgba(255,255,255,0.12)',
+    paddingHorizontal: 24,
+    gap: 10,
   },
   emptyTitle: {
-    fontSize: 16,
+    fontSize: 28,
     fontWeight: '300',
-    color: 'rgba(255,255,255,0.3)',
-    letterSpacing: 3,
-    textTransform: 'uppercase',
+    color: '#2A2A2A',
+    letterSpacing: -0.3,
   },
   emptyDesc: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.2)',
-    textAlign: 'center',
-    lineHeight: 20,
-    letterSpacing: 0.3,
+    fontSize: 14,
+    color: '#333333',
+    lineHeight: 22,
+    letterSpacing: 0.2,
   },
 });

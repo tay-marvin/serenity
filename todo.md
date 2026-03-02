@@ -51,3 +51,13 @@
 - [x] Replace Image + LinearGradient overlay in Home screen cards with pure gradient
 - [x] Replace Image background in Mixer screen with pure gradient
 - [x] Remove expo-image imports from Home, Favorites, and Mixer screens
+
+## Deep Pillowtalk Redesign
+
+- [x] New color palette: black bg, sage green, dusty rose, warm teal, muted lavender accents
+- [x] Home screen: no cards, full-width list rows with large colored sound name text
+- [x] Remove category pills from header — use a clean minimal top bar
+- [x] Mixer screen: full-screen dark with large sound name, minimal EQ sliders
+- [x] Tab bar: two tabs, no labels, ultra-minimal icons, pure black
+- [x] MiniPlayer: slim bar, no borders, just colored name + status
+- [x] Generous whitespace and breathing room on all screens

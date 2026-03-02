@@ -1,16 +1,15 @@
 /** @type {const} */
 const themeColors = {
   // Pure black background — Pillowtalk signature
-  primary:    { light: '#C8B89A', dark: '#C8B89A' }, // warm sand/cream accent
-  background: { light: '#000000', dark: '#000000' }, // pure black
-  surface:    { light: '#111111', dark: '#111111' }, // slightly lifted surface
-  foreground: { light: '#F5F0E8', dark: '#F5F0E8' }, // warm off-white text
-  muted:      { light: '#6B6560', dark: '#6B6560' }, // warm grey muted
-  border:     { light: 'rgba(255,255,255,0.07)', dark: 'rgba(255,255,255,0.07)' },
-  success:    { light: '#8FAF8A', dark: '#8FAF8A' }, // sage green
-  warning:    { light: '#C4A882', dark: '#C4A882' }, // warm amber
-  error:      { light: '#C47A72', dark: '#C47A72' }, // dusty rose
-  tint:       { light: '#C8B89A', dark: '#C8B89A' }, // same as primary
+  primary:    { light: '#A8D5A2', dark: '#A8D5A2' }, // sage green accent
+  background: { light: '#ffffff', dark: '#000000' },
+  surface:    { light: '#f5f5f5', dark: '#0D0D0D' },
+  foreground: { light: '#111111', dark: '#F5F5F0' },
+  muted:      { light: '#888888', dark: '#555555' },
+  border:     { light: '#E5E7EB', dark: '#1A1A1A' },
+  success:    { light: '#A8D5A2', dark: '#A8D5A2' },
+  warning:    { light: '#F5C97A', dark: '#F5C97A' },
+  error:      { light: '#E8857A', dark: '#E8857A' },
 };
 
 module.exports = { themeColors };

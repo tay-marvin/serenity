@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   FlatList,
   StyleSheet,
@@ -6,117 +6,101 @@ import {
   View,
   Pressable,
   Platform,
+  ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useAudioEngine } from '@/lib/audio-engine';
 import { SOUNDSCAPES } from '@/lib/sounds';
 import * as Haptics from 'expo-haptics';
 
-const CARD_HEIGHT = 200;
+const CATEGORIES = ['All', 'Rain', 'Storm', 'Water', 'Nature', 'Fire', 'Wind', 'Noise'];
 
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { activeSoundscapeId, isPlaying, favorites } = useAudioEngine();
-  const [selectedCategory, setSelectedCategory] = React.useState('All');
-
-  const CATEGORIES = ['All', 'Rain', 'Storm', 'Water', 'Nature', 'Fire', 'Wind', 'Noise'];
+  const [selectedCategory, setSelectedCategory] = useState('All');
 
   const filtered = selectedCategory === 'All'
     ? SOUNDSCAPES
     : SOUNDSCAPES.filter(s => s.category === selectedCategory);
+
+  const tabBarH = Platform.OS === 'web' ? 60 : 48 + insets.bottom;
+  const miniPlayerH = activeSoundscapeId ? 80 : 0;
 
   const handlePress = useCallback((id: string) => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push({ pathname: '/mixer/[id]' as any, params: { id } });
   }, [router]);
 
-  const tabBarH = Platform.OS === 'web' ? 60 : 48 + insets.bottom;
-  const miniPlayerH = activeSoundscapeId ? 74 : 0;
-
-  const renderItem = useCallback(({ item }: { item: typeof SOUNDSCAPES[0] }) => {
+  const renderItem = useCallback(({ item, index }: { item: typeof SOUNDSCAPES[0]; index: number }) => {
     const active = activeSoundscapeId === item.id && isPlaying;
-    const fav = favorites.includes(item.id);
+    const isFav = favorites.includes(item.id);
 
     return (
       <Pressable
         onPress={() => handlePress(item.id)}
-        style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}
+        style={({ pressed }) => [styles.row, pressed && { opacity: 0.6 }]}
       >
-        {/* Pure gradient background — no images */}
-        <LinearGradient
-          colors={item.gradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
+        {/* Large colored sound name — Pillowtalk style */}
+        <View style={styles.rowInner}>
+          <Text style={[styles.soundName, { color: item.color }]} numberOfLines={1}>
+            {item.name}
+          </Text>
 
-        {/* Subtle noise texture overlay via semi-transparent border */}
-        {active && (
-          <View style={[styles.activeBorder, { borderColor: item.color }]} />
-        )}
-
-        {/* Soft color glow in top-right corner */}
-        <View style={[styles.glow, { backgroundColor: item.color }]} />
-
-        {/* Content */}
-        <View style={styles.cardContent}>
-          {/* Top row */}
-          <View style={styles.cardTop}>
-            <View style={[styles.categoryPill, { borderColor: `${item.color}30` }]}>
-              <Text style={[styles.categoryPillText, { color: `${item.color}CC` }]}>
-                {item.category.toUpperCase()}
-              </Text>
-            </View>
-            {fav && <Text style={[styles.heartIcon, { color: item.color }]}>♥</Text>}
-          </View>
-
-          {/* Bottom */}
-          <View style={styles.cardBottom}>
-            <Text style={styles.cardName}>{item.name}</Text>
-            <Text style={styles.cardDesc} numberOfLines={1}>{item.description}</Text>
-
+          <View style={styles.rowMeta}>
+            <Text style={styles.categoryLabel}>{item.category}</Text>
+            {isFav && <Text style={[styles.favDot, { color: item.color }]}>•</Text>}
             {active && (
-              <View style={styles.playingRow}>
-                {[8, 14, 6, 12, 10].map((h, i) => (
+              <View style={styles.playingDots}>
+                {[5, 9, 6, 11, 7].map((h, i) => (
                   <View key={i} style={[styles.bar, { height: h, backgroundColor: item.color }]} />
                 ))}
-                <Text style={[styles.playingLabel, { color: item.color }]}>Playing</Text>
               </View>
             )}
           </View>
         </View>
+
+        {/* Hairline separator */}
+        <View style={styles.separator} />
       </Pressable>
     );
   }, [activeSoundscapeId, isPlaying, favorites, handlePress]);
 
   return (
-    <View style={styles.root}>
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-        <Text style={styles.appName}>S E R E N I T Y</Text>
-        <Text style={styles.appTagline}>tune your mind</Text>
+    <View style={[styles.root, { backgroundColor: '#000000' }]}>
+      {/* Fixed header */}
+      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
+        <Text style={styles.appTitle}>serenity</Text>
+        <Text style={styles.appSub}>tune your mind</Text>
 
-        {/* Category pills */}
-        <FlatList
-          data={CATEGORIES}
+        {/* Category filter — horizontal scroll */}
+        <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          keyExtractor={c => c}
-          contentContainerStyle={styles.pills}
-          renderItem={({ item }) => (
+          contentContainerStyle={styles.catRow}
+          style={styles.catScroll}
+        >
+          {CATEGORIES.map(cat => (
             <Pressable
-              onPress={() => setSelectedCategory(item)}
-              style={[styles.pill, selectedCategory === item && styles.pillActive]}
+              key={cat}
+              onPress={() => {
+                if (Platform.OS !== 'web') Haptics.selectionAsync?.();
+                setSelectedCategory(cat);
+              }}
+              style={styles.catBtn}
             >
-              <Text style={[styles.pillText, selectedCategory === item && styles.pillTextActive]}>
-                {item}
+              <Text style={[
+                styles.catText,
+                selectedCategory === cat && styles.catTextActive,
+              ]}>
+                {cat}
               </Text>
+              {selectedCategory === cat && <View style={styles.catUnderline} />}
             </Pressable>
-          )}
-        />
+          ))}
+        </ScrollView>
       </View>
 
       {/* Sound list */}
@@ -127,9 +111,11 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
           styles.list,
-          { paddingTop: insets.top + 128, paddingBottom: tabBarH + miniPlayerH + 16 },
+          {
+            paddingTop: insets.top + 148,
+            paddingBottom: tabBarH + miniPlayerH + 24,
+          },
         ]}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
       />
     </View>
   );
@@ -138,7 +124,6 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#000000',
   },
   header: {
     position: 'absolute',
@@ -146,133 +131,102 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 20,
-    paddingBottom: 14,
+    paddingBottom: 16,
     backgroundColor: '#000000',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
   },
-  appName: {
-    fontSize: 22,
+  appTitle: {
+    fontSize: 34,
     fontWeight: '300',
-    color: '#F5F0E8',
-    letterSpacing: 8,
+    color: '#F5F5F0',
+    letterSpacing: -0.5,
     paddingHorizontal: 24,
-    marginBottom: 3,
+    marginBottom: 2,
   },
-  appTagline: {
-    fontSize: 11,
-    color: '#6B6560',
-    letterSpacing: 3,
+  appSub: {
+    fontSize: 13,
+    color: '#444444',
+    letterSpacing: 0.5,
     paddingHorizontal: 24,
-    marginBottom: 16,
+    marginBottom: 20,
   },
-  pills: {
+  catScroll: {
+    flexGrow: 0,
+  },
+  catRow: {
     paddingHorizontal: 20,
+    gap: 4,
   },
-  pill: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    marginRight: 8,
-  },
-  pillActive: {
-    backgroundColor: '#C8B89A',
-    borderColor: '#C8B89A',
-  },
-  pillText: {
-    fontSize: 12,
-    fontWeight: '400',
-    color: 'rgba(255,255,255,0.35)',
-    letterSpacing: 0.3,
-  },
-  pillTextActive: {
-    color: '#000000',
-    fontWeight: '600',
-  },
-  list: {
-    paddingHorizontal: 16,
-  },
-  separator: {
-    height: 10,
-  },
-  card: {
-    width: '100%',
-    height: CARD_HEIGHT,
-    borderRadius: 18,
-    overflow: 'hidden',
-    backgroundColor: '#0a0a0a',
-  },
-  activeBorder: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: 18,
-    borderWidth: 1,
-  },
-  glow: {
-    position: 'absolute',
-    top: -30,
-    right: -30,
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    opacity: 0.12,
-  },
-  cardContent: {
-    flex: 1,
-    padding: 20,
-    justifyContent: 'space-between',
-  },
-  cardTop: {
-    flexDirection: 'row',
+  catBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginRight: 4,
     alignItems: 'center',
-    justifyContent: 'space-between',
   },
-  categoryPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    borderWidth: 1,
-    backgroundColor: 'rgba(0,0,0,0.2)',
-  },
-  categoryPillText: {
-    fontSize: 9,
-    fontWeight: '700',
-    letterSpacing: 1.5,
-  },
-  heartIcon: {
+  catText: {
     fontSize: 14,
-  },
-  cardBottom: {
-    gap: 5,
-  },
-  cardName: {
-    fontSize: 24,
-    fontWeight: '300',
-    color: '#FFFFFF',
-    letterSpacing: 0.3,
-  },
-  cardDesc: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.4)',
+    fontWeight: '400',
+    color: '#3A3A3A',
     letterSpacing: 0.2,
   },
-  playingRow: {
+  catTextActive: {
+    color: '#F5F5F0',
+    fontWeight: '500',
+  },
+  catUnderline: {
+    position: 'absolute',
+    bottom: 2,
+    left: 12,
+    right: 12,
+    height: 1.5,
+    backgroundColor: '#F5F5F0',
+    borderRadius: 1,
+  },
+  list: {
+    paddingHorizontal: 24,
+  },
+  row: {
+    paddingVertical: 6,
+  },
+  rowInner: {
+    paddingVertical: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
-    marginTop: 8,
+    justifyContent: 'space-between',
+  },
+  soundName: {
+    fontSize: 28,
+    fontWeight: '300',
+    letterSpacing: -0.3,
+    flex: 1,
+  },
+  rowMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginLeft: 12,
+  },
+  categoryLabel: {
+    fontSize: 11,
+    color: '#333333',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  favDot: {
+    fontSize: 16,
+    lineHeight: 16,
+  },
+  playingDots: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
   },
   bar: {
-    width: 3,
+    width: 2.5,
     borderRadius: 2,
-    opacity: 0.85,
+    opacity: 0.9,
   },
-  playingLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-    marginLeft: 6,
+  separator: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: '#1A1A1A',
   },
 });

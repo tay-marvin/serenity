@@ -6,9 +6,9 @@ import {
   PanResponder,
 } from 'react-native';
 
-const SLIDER_HEIGHT = 150;
-const SLIDER_WIDTH = 32;
-const THUMB_SIZE = 20;
+const SLIDER_HEIGHT = 130;
+const SLIDER_WIDTH = 28;
+const THUMB_SIZE = 16;
 
 interface EQSliderProps {
   label: string;
@@ -39,20 +39,14 @@ export function EQSlider({ label, value, accentColor, onChange }: EQSliderProps)
     })
   ).current;
 
-  // Opacity scales with value for a subtle breathing effect
-  const fillOpacity = 0.25 + (value / 100) * 0.75;
+  const isActive = value > 5;
 
   return (
     <View style={styles.container}>
       {/* Track */}
       <View style={styles.track} {...panResponder.panHandlers}>
-        {/* Track background lines (subtle grid) */}
-        {[25, 50, 75].map(pct => (
-          <View
-            key={pct}
-            style={[styles.gridLine, { bottom: (pct / 100) * SLIDER_HEIGHT }]}
-          />
-        ))}
+        {/* Subtle mid-line */}
+        <View style={styles.midLine} />
 
         {/* Fill */}
         <View
@@ -61,7 +55,7 @@ export function EQSlider({ label, value, accentColor, onChange }: EQSliderProps)
             {
               height: fillHeight,
               backgroundColor: accentColor,
-              opacity: fillOpacity,
+              opacity: 0.15 + (value / 100) * 0.7,
             },
           ]}
         />
@@ -72,21 +66,16 @@ export function EQSlider({ label, value, accentColor, onChange }: EQSliderProps)
             styles.thumb,
             {
               bottom: fillHeight - THUMB_SIZE / 2,
-              backgroundColor: value > 5 ? '#FFFFFF' : 'rgba(255,255,255,0.2)',
-              shadowColor: accentColor,
-              shadowOpacity: value > 5 ? 0.5 : 0,
+              backgroundColor: isActive ? '#FFFFFF' : '#1A1A1A',
+              shadowColor: isActive ? accentColor : 'transparent',
+              shadowOpacity: isActive ? 0.6 : 0,
             },
           ]}
         />
       </View>
 
       {/* Label */}
-      <Text style={styles.label}>{label}</Text>
-
-      {/* Value */}
-      <Text style={[styles.value, { color: value > 5 ? accentColor : 'rgba(255,255,255,0.2)' }]}>
-        {value}
-      </Text>
+      <Text style={[styles.label, isActive && { color: '#444444' }]}>{label}</Text>
     </View>
   );
 }
@@ -94,24 +83,25 @@ export function EQSlider({ label, value, accentColor, onChange }: EQSliderProps)
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
   },
   track: {
     width: SLIDER_WIDTH,
     height: SLIDER_HEIGHT,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: '#0D0D0D',
     borderRadius: SLIDER_WIDTH / 2,
     overflow: 'hidden',
     position: 'relative',
-    borderWidth: 0.5,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#1A1A1A',
   },
-  gridLine: {
+  midLine: {
     position: 'absolute',
     left: 0,
     right: 0,
-    height: 0.5,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    bottom: SLIDER_HEIGHT / 2,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: '#1E1E1E',
   },
   fill: {
     position: 'absolute',
@@ -132,14 +122,9 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 9,
-    fontWeight: '500',
-    color: 'rgba(255,255,255,0.3)',
+    fontWeight: '400',
+    color: '#222222',
     textTransform: 'uppercase',
     letterSpacing: 0.8,
-  },
-  value: {
-    fontSize: 10,
-    fontWeight: '500',
-    letterSpacing: 0.5,
   },
 });
