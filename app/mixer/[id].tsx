@@ -42,6 +42,8 @@ export default function MixerScreen() {
     masterVolume,
     favorites,
     timerEndTime,
+    bellEnabled,
+    bellIntervalMinutes,
     play,
     pause,
     resume,
@@ -49,6 +51,7 @@ export default function MixerScreen() {
     applyPreset,
     setMasterVolume,
     toggleFavorite,
+    setBell,
   } = useAudioEngine();
 
   const [timerSheetVisible, setTimerSheetVisible] = useState(false);
@@ -238,6 +241,66 @@ export default function MixerScreen() {
             </Pressable>
           ))}
         </View>
+
+        {/* Divider */}
+        <View style={styles.divider} />
+
+        {/* Meditation Bell */}
+        <View style={styles.bellHeader}>
+          <View style={styles.bellTitleRow}>
+            <Text style={styles.sectionLabel}>Meditation Bell</Text>
+            <Text style={styles.bellDesc}>Chimes at set intervals</Text>
+          </View>
+          <Pressable
+            onPress={() => {
+              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              setBell(!bellEnabled, bellIntervalMinutes ?? 10);
+            }}
+            accessibilityRole="switch"
+            accessibilityLabel={bellEnabled ? 'Bell enabled, tap to disable' : 'Bell disabled, tap to enable'}
+            accessibilityState={{ checked: bellEnabled }}
+            style={({ pressed }) => [styles.bellToggle, pressed && { opacity: 0.7 }]}
+          >
+            <View style={[
+              styles.bellToggleTrack,
+              { backgroundColor: bellEnabled ? accent : '#2A2A2A' },
+            ]}>
+              <View style={[
+                styles.bellToggleThumb,
+                { transform: [{ translateX: bellEnabled ? 20 : 2 }] },
+              ]} />
+            </View>
+          </Pressable>
+        </View>
+
+        {bellEnabled && (
+          <View style={styles.bellIntervals}>
+            {[5, 10, 15, 20, 30].map((mins) => (
+              <Pressable
+                key={mins}
+                onPress={() => {
+                  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setBell(true, mins);
+                }}
+                accessibilityRole="radio"
+                accessibilityLabel={`Bell every ${mins} minutes`}
+                accessibilityState={{ checked: bellIntervalMinutes === mins }}
+                style={({ pressed }) => [
+                  styles.bellChip,
+                  bellIntervalMinutes === mins && { backgroundColor: accent, borderColor: accent },
+                  pressed && { opacity: 0.7 },
+                ]}
+              >
+                <Text style={[
+                  styles.bellChipText,
+                  { color: bellIntervalMinutes === mins ? '#000000' : C.textSecondary },
+                ]}>
+                  {mins}m
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
 
         {/* Divider */}
         <View style={styles.divider} />
@@ -478,5 +541,66 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.5,
     shadowRadius: 6,
     elevation: 4,
+  },
+  // Bell styles
+  bellHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  bellTitleRow: {
+    gap: 4,
+    flex: 1,
+  },
+  bellDesc: {
+    fontSize: 14,
+    color: C.textSecondary,     // 9.7:1 ✓
+    letterSpacing: 0.2,
+    lineHeight: 20,
+  },
+  bellToggle: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bellToggleTrack: {
+    width: 44,
+    height: 26,
+    borderRadius: 13,
+    justifyContent: 'center',
+  },
+  bellToggleThumb: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  bellIntervals: {
+    flexDirection: 'row',
+    gap: 10,
+    flexWrap: 'wrap',
+    marginBottom: 8,
+  },
+  bellChip: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 24,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#2A2A2A',
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  bellChipText: {
+    fontSize: 15,
+    fontWeight: '400',
+    letterSpacing: 0.3,
+    lineHeight: 20,
   },
 });

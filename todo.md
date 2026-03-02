@@ -74,3 +74,11 @@
 - [x] Brighten EQ slider labels and value text
 - [x] Improve MiniPlayer status text contrast
 - [x] Improve TimerSheet option chip text contrast
+
+## Meditation Bell
+
+- [x] Find and verify real meditation bell MP3 URL
+- [x] Fix audio engine bell to use real audio file (not generated tone)
+- [x] Add bell toggle + interval selector directly on the Mixer screen
+- [x] Bell plays at selected interval while ambient audio is running
+- [x] Bell state persists across sessions

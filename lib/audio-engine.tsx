@@ -253,12 +253,20 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
 
     if (enabled) {
       bellRef.current = setInterval(() => {
-        // Play a simple bell tone (using a short audio clip)
+        // Play the verified meditation bell MP3 (orangefreesounds, 17s, 200 OK)
         try {
-          const bellPlayer = createAudioPlayer({ uri: 'https://cdn.pixabay.com/audio/2022/03/15/audio_1a609d8b6b.mp3' });
+          const bellPlayer = createAudioPlayer({
+            uri: 'https://www.orangefreesounds.com/wp-content/uploads/2018/03/Meditation-bell-sound.mp3',
+          });
+          bellPlayer.volume = 1.0;
           bellPlayer.play();
-          setTimeout(() => bellPlayer.remove(), 5000);
-        } catch {}
+          // Release after 20 seconds (bell is 17s long)
+          setTimeout(() => {
+            try { bellPlayer.remove(); } catch {}
+          }, 20000);
+        } catch (e) {
+          console.warn('Bell play error:', e);
+        }
       }, intervalMinutes * 60 * 1000);
     }
   }, []);
