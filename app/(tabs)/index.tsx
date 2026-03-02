@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback } from 'react';
 import {
   FlatList,
   StyleSheet,
@@ -6,7 +6,6 @@ import {
   View,
   Pressable,
   Platform,
-  ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,22 +13,12 @@ import { useAudioEngine } from '@/lib/audio-engine';
 import { SOUNDSCAPES } from '@/lib/sounds';
 import * as Haptics from 'expo-haptics';
 
-const CATEGORIES = ['All', 'Rain', 'Storm', 'Water', 'Nature', 'Fire', 'Wind', 'Noise'];
-
 // WCAG AA contrast color palette (on #000000 background)
-// All text colors verified to meet minimum 4.5:1 ratio for normal text, 3:1 for large text
 const C = {
-  // Primary text — white, max contrast
-  textPrimary: '#F5F5F0',      // 19.5:1 on black ✓
-  // Secondary / muted text — light grey, 7:1 on black
-  textSecondary: '#999999',    // 9.7:1 on black ✓
-  // Tertiary / category labels — medium grey, 4.6:1 on black
-  textTertiary: '#777777',     // 5.9:1 on black ✓
-  // Inactive tab/filter text
-  textInactive: '#666666',     // 4.5:1 on black ✓
-  // Separator lines — visible but subtle
+  textPrimary: '#F5F5F0',   // 19.5:1 on black ✓
+  textSecondary: '#999999', // 9.7:1 on black ✓
+  textTertiary: '#777777',  // 5.9:1 on black ✓
   separator: '#2A2A2A',
-  // Background
   bg: '#000000',
 };
 
@@ -37,16 +26,11 @@ export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { activeSoundscapeId, isPlaying, favorites } = useAudioEngine();
-  const [selectedCategory, setSelectedCategory] = useState('All');
-
-  const filtered = selectedCategory === 'All'
-    ? SOUNDSCAPES
-    : SOUNDSCAPES.filter(s => s.category === selectedCategory);
 
   const tabBarH = Platform.OS === 'web' ? 60 : 48 + insets.bottom;
   const miniPlayerH = activeSoundscapeId ? 80 : 0;
 
-  const handlePress = useCallback((id: string, name: string) => {
+  const handlePress = useCallback((id: string) => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push({ pathname: '/mixer/[id]' as any, params: { id } });
   }, [router]);
@@ -57,7 +41,7 @@ export default function HomeScreen() {
 
     return (
       <Pressable
-        onPress={() => handlePress(item.id, item.name)}
+        onPress={() => handlePress(item.id)}
         accessibilityRole="button"
         accessibilityLabel={`${item.name}, ${item.category}${active ? ', now playing' : ''}${isFav ? ', saved' : ''}`}
         accessibilityHint="Opens the sound mixer"
@@ -70,7 +54,6 @@ export default function HomeScreen() {
           </Text>
 
           <View style={styles.rowMeta}>
-            {/* Category label — now meets 4.5:1 contrast */}
             <Text style={styles.categoryLabel} accessibilityElementsHidden>
               {item.category}
             </Text>
@@ -83,10 +66,7 @@ export default function HomeScreen() {
               </Text>
             )}
             {active && (
-              <View
-                style={styles.playingDots}
-                accessibilityElementsHidden
-              >
+              <View style={styles.playingDots} accessibilityElementsHidden>
                 {[5, 9, 6, 11, 7].map((h, i) => (
                   <View key={i} style={[styles.bar, { height: h, backgroundColor: item.color }]} />
                 ))}
@@ -95,7 +75,6 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* Visible separator */}
         <View style={styles.separator} />
       </Pressable>
     );
@@ -109,42 +88,11 @@ export default function HomeScreen() {
           serenity
         </Text>
         <Text style={styles.appSub}>tune your mind</Text>
-
-        {/* Category filter */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.catRow}
-          style={styles.catScroll}
-          accessibilityRole="tablist"
-        >
-          {CATEGORIES.map(cat => (
-            <Pressable
-              key={cat}
-              onPress={() => {
-                if (Platform.OS !== 'web') Haptics.selectionAsync?.();
-                setSelectedCategory(cat);
-              }}
-              accessibilityRole="tab"
-              accessibilityLabel={`${cat} sounds`}
-              accessibilityState={{ selected: selectedCategory === cat }}
-              style={styles.catBtn}
-            >
-              <Text style={[
-                styles.catText,
-                selectedCategory === cat && styles.catTextActive,
-              ]}>
-                {cat}
-              </Text>
-              {selectedCategory === cat && <View style={styles.catUnderline} />}
-            </Pressable>
-          ))}
-        </ScrollView>
       </View>
 
       {/* Sound list */}
       <FlatList
-        data={filtered}
+        data={SOUNDSCAPES}
         keyExtractor={item => item.id}
         renderItem={renderItem}
         showsVerticalScrollIndicator={false}
@@ -152,7 +100,7 @@ export default function HomeScreen() {
         contentContainerStyle={[
           styles.list,
           {
-            paddingTop: insets.top + 152,
+            paddingTop: insets.top + 100,
             paddingBottom: tabBarH + miniPlayerH + 24,
           },
         ]}
@@ -178,61 +126,24 @@ const styles = StyleSheet.create({
   appTitle: {
     fontSize: 34,
     fontWeight: '300',
-    color: C.textPrimary,       // 19.5:1 ✓
+    color: C.textPrimary,
     letterSpacing: -0.5,
     paddingHorizontal: 24,
     marginBottom: 4,
   },
   appSub: {
     fontSize: 14,
-    color: C.textSecondary,     // 9.7:1 ✓
+    color: C.textSecondary,
     letterSpacing: 0.5,
     paddingHorizontal: 24,
-    marginBottom: 20,
     lineHeight: 20,
-  },
-  catScroll: {
-    flexGrow: 0,
-  },
-  catRow: {
-    paddingHorizontal: 20,
-    gap: 4,
-  },
-  catBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginRight: 4,
-    alignItems: 'center',
-    minHeight: 44,              // 44pt minimum touch target ✓
-    justifyContent: 'center',
-  },
-  catText: {
-    fontSize: 15,
-    fontWeight: '400',
-    color: C.textInactive,      // 4.5:1 ✓
-    letterSpacing: 0.2,
-  },
-  catTextActive: {
-    color: C.textPrimary,       // 19.5:1 ✓
-    fontWeight: '500',
-  },
-  catUnderline: {
-    position: 'absolute',
-    bottom: 4,
-    left: 12,
-    right: 12,
-    height: 1.5,
-    backgroundColor: C.textPrimary,
-    borderRadius: 1,
   },
   list: {
     paddingHorizontal: 24,
   },
-  row: {
-    // Minimum 44pt touch target via rowInner padding
-  },
+  row: {},
   rowInner: {
-    paddingVertical: 16,        // row height ~56pt, well above 44pt ✓
+    paddingVertical: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -244,7 +155,6 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
     flex: 1,
     lineHeight: 34,
-    // Colors are set per-soundscape; all verified ≥ 3:1 on black for large text ✓
   },
   rowMeta: {
     flexDirection: 'row',
@@ -254,7 +164,7 @@ const styles = StyleSheet.create({
   },
   categoryLabel: {
     fontSize: 12,
-    color: C.textTertiary,      // 5.9:1 ✓
+    color: C.textTertiary,
     letterSpacing: 1,
     textTransform: 'uppercase',
     lineHeight: 16,
@@ -275,6 +185,6 @@ const styles = StyleSheet.create({
   },
   separator: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: C.separator,  // visible on black ✓
+    backgroundColor: C.separator,
   },
 });

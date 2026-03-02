@@ -91,3 +91,9 @@
 - [x] Handle remote control events (play, pause via setActiveForLockScreen)
 - [x] Configure audio session for background playback on iOS (shouldPlayInBackground + doNotMix)
 - [x] Verify app.config.ts has enableBackgroundPlayback: true in expo-audio plugin
+
+## Remove Category Filters
+
+- [x] Remove category filter bar (ScrollView + pill chips) from Home screen
+- [x] Remove selectedCategory state and filtering logic
+- [x] Show all soundscapes in a single flat list
