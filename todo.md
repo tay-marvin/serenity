@@ -97,3 +97,7 @@
 - [x] Remove category filter bar (ScrollView + pill chips) from Home screen
 - [x] Remove selectedCategory state and filtering logic
 - [x] Show all soundscapes in a single flat list
+
+## Bell Timer Update
+
+- [x] Add 1m option to bell interval chips on mixer screen

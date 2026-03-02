@@ -275,7 +275,7 @@ export default function MixerScreen() {
 
         {bellEnabled && (
           <View style={styles.bellIntervals}>
-            {[5, 10, 15, 20, 30].map((mins) => (
+            {[1, 5, 10, 15, 20, 30].map((mins) => (
               <Pressable
                 key={mins}
                 onPress={() => {
