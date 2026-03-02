@@ -4,83 +4,99 @@ import {
   StyleSheet,
   Text,
   View,
+  Pressable,
   Platform,
+  Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { SoundCard } from '@/components/sound-card';
 import { useAudioEngine } from '@/lib/audio-engine';
 import { SOUNDSCAPES } from '@/lib/sounds';
 import * as Haptics from 'expo-haptics';
+
+const CARD_HEIGHT = 220;
 
 export default function FavoritesScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { activeSoundscapeId, isPlaying, favorites } = useAudioEngine();
 
-  const favoriteSounds = SOUNDSCAPES.filter(s => favorites.includes(s.id));
+  const favSounds = SOUNDSCAPES.filter(s => favorites.includes(s.id));
 
-  const handleCardPress = useCallback((id: string) => {
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handlePress = useCallback((id: string) => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push({ pathname: '/mixer/[id]' as any, params: { id } });
   }, [router]);
 
-  const renderItem = useCallback(({ item, index }: { item: typeof SOUNDSCAPES[0]; index: number }) => (
-    <View style={[styles.cardWrapper, index % 2 === 0 ? styles.cardLeft : styles.cardRight]}>
-      <SoundCard
-        soundscape={item}
-        isPlaying={activeSoundscapeId === item.id && isPlaying}
-        isFavorite
-        onPress={() => handleCardPress(item.id)}
-      />
-    </View>
-  ), [activeSoundscapeId, isPlaying, handleCardPress]);
+  const tabBarH = Platform.OS === 'web' ? 60 : 48 + insets.bottom;
+  const miniPlayerH = activeSoundscapeId ? 68 : 0;
 
-  const tabBarHeight = Platform.OS === 'web' ? 68 : 80 + insets.bottom;
-  const miniPlayerHeight = activeSoundscapeId ? 64 : 0;
-  const bottomPad = tabBarHeight + miniPlayerHeight + 16;
+  const renderItem = useCallback(({ item }: { item: typeof SOUNDSCAPES[0] }) => {
+    const active = activeSoundscapeId === item.id && isPlaying;
+    return (
+      <Pressable
+        onPress={() => handlePress(item.id)}
+        style={({ pressed }) => [styles.card, pressed && { opacity: 0.88 }]}
+      >
+        <Image
+          source={{ uri: item.imageUrl }}
+          style={StyleSheet.absoluteFill}
+          contentFit="cover"
+          transition={400}
+        />
+        <LinearGradient
+          colors={['rgba(0,0,0,0.08)', 'rgba(0,0,0,0.55)', 'rgba(0,0,0,0.82)']}
+          locations={[0, 0.5, 1]}
+          style={StyleSheet.absoluteFill}
+        />
+        {active && <View style={styles.activeBorder} />}
+        <View style={styles.cardContent}>
+          <View style={styles.cardTop}>
+            <View style={styles.categoryPill}>
+              <Text style={styles.categoryPillText}>{item.category}</Text>
+            </View>
+            <Text style={styles.heartIcon}>♥</Text>
+          </View>
+          <View style={styles.cardBottom}>
+            <Text style={styles.cardName}>{item.name}</Text>
+            <Text style={styles.cardDesc} numberOfLines={1}>{item.description}</Text>
+          </View>
+        </View>
+      </Pressable>
+    );
+  }, [activeSoundscapeId, isPlaying, handlePress]);
 
   return (
-    <View style={styles.container}>
-      <LinearGradient
-        colors={['#0D0D1A', '#080810']}
-        style={StyleSheet.absoluteFill}
-      />
-
+    <View style={styles.root}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-        <Text style={styles.title}>Favorites</Text>
-        <Text style={styles.subtitle}>
-          {favoriteSounds.length === 0
-            ? 'Heart a soundscape to save it here'
-            : `${favoriteSounds.length} saved soundscape${favoriteSounds.length !== 1 ? 's' : ''}`}
+      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+        <Text style={styles.appName}>Saved</Text>
+        <Text style={styles.appTagline}>
+          {favSounds.length === 0 ? 'your saved sounds' : `${favSounds.length} soundscape${favSounds.length !== 1 ? 's' : ''}`}
         </Text>
       </View>
 
-      {favoriteSounds.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyIcon}>♡</Text>
-          <Text style={styles.emptyTitle}>No favorites yet</Text>
+      {favSounds.length === 0 ? (
+        <View style={[styles.empty, { paddingTop: insets.top + 120 }]}>
+          <Text style={styles.emptySymbol}>♡</Text>
+          <Text style={styles.emptyTitle}>Nothing saved yet</Text>
           <Text style={styles.emptyDesc}>
-            Open any soundscape and tap the heart icon to save it here.
+            Open any sound and tap the heart to save it here.
           </Text>
         </View>
       ) : (
         <FlatList
-          data={favoriteSounds}
-          renderItem={renderItem}
+          data={favSounds}
           keyExtractor={item => item.id}
-          numColumns={2}
+          renderItem={renderItem}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[
-            styles.listContent,
-            { paddingTop: insets.top + 100, paddingBottom: bottomPad },
+            styles.list,
+            { paddingTop: insets.top + 100, paddingBottom: tabBarH + miniPlayerH + 16 },
           ]}
-          columnWrapperStyle={styles.row}
+          ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
         />
       )}
     </View>
@@ -88,66 +104,118 @@ export default function FavoritesScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  root: {
     flex: 1,
-    backgroundColor: '#080810',
+    backgroundColor: '#000000',
   },
   header: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    zIndex: 10,
-    paddingHorizontal: 20,
-    paddingBottom: 12,
+    zIndex: 20,
+    paddingBottom: 14,
+    paddingHorizontal: 24,
+    backgroundColor: '#000000',
+    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
   },
-  title: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: '#F0F0FF',
-    letterSpacing: -0.5,
+  appName: {
+    fontSize: 28,
+    fontWeight: '300',
+    color: '#F5F0E8',
+    letterSpacing: 6,
+    textTransform: 'uppercase',
+    marginBottom: 2,
   },
-  subtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.4)',
-    marginTop: 4,
+  appTagline: {
+    fontSize: 12,
+    color: '#6B6560',
+    letterSpacing: 3,
+    textTransform: 'lowercase',
   },
-  listContent: {
+  list: {
     paddingHorizontal: 16,
   },
-  row: {
-    justifyContent: 'space-between',
-    marginBottom: 12,
+  card: {
+    width: '100%',
+    height: CARD_HEIGHT,
+    borderRadius: 20,
+    overflow: 'hidden',
+    backgroundColor: '#111111',
   },
-  cardWrapper: {
+  activeBorder: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: '#C8B89A',
+  },
+  cardContent: {
     flex: 1,
+    padding: 18,
+    justifyContent: 'space-between',
   },
-  cardLeft: {
-    marginRight: 6,
+  cardTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  cardRight: {
-    marginLeft: 6,
+  categoryPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
   },
-  emptyState: {
+  categoryPillText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.7)',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  heartIcon: {
+    fontSize: 14,
+    color: '#C8B89A',
+  },
+  cardBottom: {
+    gap: 4,
+  },
+  cardName: {
+    fontSize: 22,
+    fontWeight: '300',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+  cardDesc: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.45)',
+    letterSpacing: 0.3,
+  },
+  empty: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 40,
+    paddingHorizontal: 48,
     gap: 12,
   },
-  emptyIcon: {
-    fontSize: 48,
-    color: 'rgba(255,255,255,0.2)',
+  emptySymbol: {
+    fontSize: 40,
+    color: 'rgba(255,255,255,0.15)',
   },
   emptyTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: 'rgba(255,255,255,0.5)',
+    fontSize: 18,
+    fontWeight: '300',
+    color: 'rgba(255,255,255,0.35)',
+    letterSpacing: 2,
+    textTransform: 'uppercase',
   },
   emptyDesc: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.3)',
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.25)',
     textAlign: 'center',
     lineHeight: 20,
+    letterSpacing: 0.3,
   },
 });

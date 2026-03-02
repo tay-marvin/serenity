@@ -1,17 +1,14 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useRef } from 'react';
 import {
   StyleSheet,
   Text,
   View,
   PanResponder,
-  Animated,
-  Dimensions,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 
-const SLIDER_HEIGHT = 160;
-const SLIDER_WIDTH = 28;
-const THUMB_SIZE = 24;
+const SLIDER_HEIGHT = 150;
+const SLIDER_WIDTH = 32;
+const THUMB_SIZE = 20;
 
 interface EQSliderProps {
   label: string;
@@ -22,9 +19,6 @@ interface EQSliderProps {
 
 export function EQSlider({ label, value, accentColor, onChange }: EQSliderProps) {
   const fillHeight = (value / 100) * SLIDER_HEIGHT;
-  const thumbPosition = SLIDER_HEIGHT - fillHeight - THUMB_SIZE / 2;
-
-  const panRef = useRef<PanResponder | null>(null);
   const startYRef = useRef(0);
   const startValueRef = useRef(value);
 
@@ -32,52 +26,45 @@ export function EQSlider({ label, value, accentColor, onChange }: EQSliderProps)
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: (_, gestureState) => {
-        startYRef.current = gestureState.y0;
+      onPanResponderGrant: (_, g) => {
+        startYRef.current = g.y0;
         startValueRef.current = value;
       },
-      onPanResponderMove: (_, gestureState) => {
-        const dy = gestureState.moveY - startYRef.current;
+      onPanResponderMove: (_, g) => {
+        const dy = g.moveY - startYRef.current;
         const delta = -(dy / SLIDER_HEIGHT) * 100;
-        const newValue = Math.min(100, Math.max(0, startValueRef.current + delta));
-        onChange(Math.round(newValue));
+        const newVal = Math.min(100, Math.max(0, startValueRef.current + delta));
+        onChange(Math.round(newVal));
       },
     })
   ).current;
 
-  // Interpolate color from teal (low) to violet (high)
-  const fillOpacity = 0.3 + (value / 100) * 0.7;
+  // Opacity scales with value for a subtle breathing effect
+  const fillOpacity = 0.25 + (value / 100) * 0.75;
 
   return (
     <View style={styles.container}>
-      {/* Track background */}
+      {/* Track */}
       <View style={styles.track} {...panResponder.panHandlers}>
+        {/* Track background lines (subtle grid) */}
+        {[25, 50, 75].map(pct => (
+          <View
+            key={pct}
+            style={[styles.gridLine, { bottom: (pct / 100) * SLIDER_HEIGHT }]}
+          />
+        ))}
+
         {/* Fill */}
         <View
           style={[
             styles.fill,
             {
               height: fillHeight,
-              bottom: 0,
               backgroundColor: accentColor,
               opacity: fillOpacity,
             },
           ]}
         />
-
-        {/* Glow at top of fill */}
-        {value > 5 && (
-          <View
-            style={[
-              styles.glow,
-              {
-                bottom: fillHeight - 4,
-                backgroundColor: accentColor,
-                shadowColor: accentColor,
-              },
-            ]}
-          />
-        )}
 
         {/* Thumb */}
         <View
@@ -85,8 +72,9 @@ export function EQSlider({ label, value, accentColor, onChange }: EQSliderProps)
             styles.thumb,
             {
               bottom: fillHeight - THUMB_SIZE / 2,
-              backgroundColor: '#FFFFFF',
+              backgroundColor: value > 5 ? '#FFFFFF' : 'rgba(255,255,255,0.2)',
               shadowColor: accentColor,
+              shadowOpacity: value > 5 ? 0.5 : 0,
             },
           ]}
         />
@@ -96,7 +84,9 @@ export function EQSlider({ label, value, accentColor, onChange }: EQSliderProps)
       <Text style={styles.label}>{label}</Text>
 
       {/* Value */}
-      <Text style={[styles.value, { color: accentColor }]}>{value}</Text>
+      <Text style={[styles.value, { color: value > 5 ? accentColor : 'rgba(255,255,255,0.2)' }]}>
+        {value}
+      </Text>
     </View>
   );
 }
@@ -104,32 +94,31 @@ export function EQSlider({ label, value, accentColor, onChange }: EQSliderProps)
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
   },
   track: {
     width: SLIDER_WIDTH,
     height: SLIDER_HEIGHT,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
     borderRadius: SLIDER_WIDTH / 2,
     overflow: 'hidden',
     position: 'relative',
+    borderWidth: 0.5,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  gridLine: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 0.5,
+    backgroundColor: 'rgba(255,255,255,0.06)',
   },
   fill: {
     position: 'absolute',
     left: 0,
     right: 0,
+    bottom: 0,
     borderRadius: SLIDER_WIDTH / 2,
-  },
-  glow: {
-    position: 'absolute',
-    left: 4,
-    right: 4,
-    height: 8,
-    borderRadius: 4,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 6,
-    elevation: 4,
   },
   thumb: {
     position: 'absolute',
@@ -138,19 +127,19 @@ const styles = StyleSheet.create({
     height: THUMB_SIZE,
     borderRadius: THUMB_SIZE / 2,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
     shadowRadius: 8,
     elevation: 4,
   },
   label: {
     fontSize: 9,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.4)',
+    fontWeight: '500',
+    color: 'rgba(255,255,255,0.3)',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
   },
   value: {
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: '500',
+    letterSpacing: 0.5,
   },
 });

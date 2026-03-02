@@ -191,10 +191,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
   sheet: {
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     overflow: 'hidden',
-    backgroundColor: 'rgba(12,12,20,0.95)',
+    backgroundColor: 'rgba(8,8,8,0.97)',
     maxHeight: '80%',
   },
   content: {
@@ -217,8 +217,9 @@ const styles = StyleSheet.create({
   title: {
     flex: 1,
     fontSize: 18,
-    fontWeight: '700',
-    color: '#F0F0FF',
+    fontWeight: '300',
+    color: '#F5F0E8',
+    letterSpacing: 0.5,
   },
   closeBtn: {
     padding: 4,
@@ -247,10 +248,10 @@ const styles = StyleSheet.create({
   optionChip: {
     paddingHorizontal: 16,
     paddingVertical: 10,
-    borderRadius: 12,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.04)',
   },
   optionText: {
     fontSize: 14,
@@ -302,12 +303,13 @@ const styles = StyleSheet.create({
   startButton: {
     flex: 2,
     paddingVertical: 16,
-    borderRadius: 16,
+    borderRadius: 14,
     alignItems: 'center',
   },
   startText: {
     fontSize: 15,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontWeight: '600',
+    color: '#000000',
+    letterSpacing: 0.3,
   },
 });

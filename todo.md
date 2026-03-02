@@ -24,3 +24,23 @@
 - [x] Unit tests for sounds data model and volume calculation
 - [ ] Polish: animated waveform bars in MiniPlayer
 - [ ] Polish: Ken Burns background animation on mixer screen
+
+## Multi-Layer Sound Mixer Upgrade
+
+- [ ] Redesign data model: each soundscape has multiple named audio layers
+- [ ] Source and verify individual layer audio URLs (rain drizzle, heavy rain, thunder, wind, etc.)
+- [ ] Build multi-layer audio engine: one AudioPlayer per layer, per-layer volume
+- [ ] Build new mixer UI: vertical slider per layer with label and icon
+- [ ] Home screen: show soundscape as a "scene" you enter, not just play
+- [ ] Persist per-layer volumes in AsyncStorage
+- [ ] Presets snap all layer volumes at once
+- [ ] Unit tests for multi-layer engine logic
+
+## Pillowtalk UI Redesign
+
+- [x] Update theme: pure black bg, warm cream/sand accent, soft white text
+- [x] Redesign Home screen: large full-width cards, minimal chrome, uppercase spaced title
+- [x] Redesign tab bar: minimal icons, no labels, pure black
+- [x] Redesign Mixer screen: clean EQ sliders, warm cream accent, intimate dark feel
+- [x] Redesign MiniPlayer: slim frosted dark bar, warm accent dot
+- [x] Update SoundCard: full-bleed image, heavy gradient overlay, large light-weight name text
