@@ -61,3 +61,16 @@
 - [x] Tab bar: two tabs, no labels, ultra-minimal icons, pure black
 - [x] MiniPlayer: slim bar, no borders, just colored name + status
 - [x] Generous whitespace and breathing room on all screens
+
+## Accessibility & Contrast Improvements
+
+- [x] Boost muted/secondary text from #333-#444 to #888+ (WCAG AA on black)
+- [x] Ensure all accent colors meet 3:1 contrast ratio on black background
+- [x] Increase category label contrast on Home screen
+- [x] Fix separator/divider visibility
+- [x] Add accessibilityLabel to all Pressable buttons
+- [x] Add accessibilityRole to interactive elements
+- [x] Ensure minimum 44x44pt touch targets on all buttons
+- [x] Brighten EQ slider labels and value text
+- [x] Improve MiniPlayer status text contrast
+- [x] Improve TimerSheet option chip text contrast

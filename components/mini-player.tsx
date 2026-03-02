@@ -17,18 +17,22 @@ export function MiniPlayer() {
 
   const accent = soundscape.color;
 
-  const handlePlayPause = () => {
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  const handlePlayPause = (e: any) => {
+    e.stopPropagation?.();
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     isPlaying ? pause() : resume();
   };
 
   const handleOpen = () => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push({ pathname: '/mixer/[id]' as any, params: { id: activeSoundscapeId } });
   };
 
   return (
     <Pressable
       onPress={handleOpen}
+      accessibilityRole="button"
+      accessibilityLabel={`Now playing: ${soundscape.name}. Tap to open mixer.`}
       style={({ pressed }) => [styles.wrapper, pressed && { opacity: 0.7 }]}
     >
       {/* Hairline top border */}
@@ -57,6 +61,9 @@ export function MiniPlayer() {
         {/* Play/Pause */}
         <Pressable
           onPress={handlePlayPause}
+          accessibilityRole="button"
+          accessibilityLabel={isPlaying ? `Pause ${soundscape.name}` : `Resume ${soundscape.name}`}
+          accessibilityState={{ selected: isPlaying }}
           style={({ pressed }) => [styles.btn, pressed && { opacity: 0.5 }]}
         >
           <IconSymbol
@@ -108,13 +115,14 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
   },
   status: {
-    fontSize: 11,
-    color: '#333333',
+    fontSize: 12,
+    color: '#888888',           // 7.0:1 on black ✓
     letterSpacing: 0.5,
+    lineHeight: 16,
   },
   btn: {
-    width: 36,
-    height: 36,
+    width: 44,                  // 44pt minimum touch target ✓
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },

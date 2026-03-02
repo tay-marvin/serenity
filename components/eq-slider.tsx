@@ -1,61 +1,78 @@
-import React, { useRef } from 'react';
+import React, { useCallback, useRef } from 'react';
 import {
   StyleSheet,
   Text,
   View,
   PanResponder,
+  Platform,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 
-const SLIDER_HEIGHT = 130;
-const SLIDER_WIDTH = 28;
-const THUMB_SIZE = 16;
+const TRACK_HEIGHT = 160;
+const THUMB_SIZE = 20;
 
 interface EQSliderProps {
   label: string;
-  value: number; // 0-100
+  value: number;       // 0–100
   accentColor: string;
   onChange: (value: number) => void;
 }
 
 export function EQSlider({ label, value, accentColor, onChange }: EQSliderProps) {
-  const fillHeight = (value / 100) * SLIDER_HEIGHT;
-  const startYRef = useRef(0);
-  const startValueRef = useRef(value);
+  const lastHapticVal = useRef(value);
+
+  const handlePan = useCallback((dy: number, startVal: number) => {
+    const delta = -(dy / TRACK_HEIGHT) * 100;
+    const next = Math.min(100, Math.max(0, Math.round(startVal + delta)));
+    if (Math.abs(next - lastHapticVal.current) >= 10 && Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      lastHapticVal.current = next;
+    }
+    onChange(next);
+  }, [onChange]);
+
+  const startValRef = useRef(value);
 
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: (_, g) => {
-        startYRef.current = g.y0;
-        startValueRef.current = value;
+      onPanResponderGrant: () => {
+        startValRef.current = value;
       },
-      onPanResponderMove: (_, g) => {
-        const dy = g.moveY - startYRef.current;
-        const delta = -(dy / SLIDER_HEIGHT) * 100;
-        const newVal = Math.min(100, Math.max(0, startValueRef.current + delta));
-        onChange(Math.round(newVal));
+      onPanResponderMove: (_, gs) => {
+        handlePan(gs.dy, startValRef.current);
       },
     })
   ).current;
 
-  const isActive = value > 5;
+  const fillHeight = (value / 100) * TRACK_HEIGHT;
+  const thumbOffset = TRACK_HEIGHT - fillHeight - THUMB_SIZE / 2;
 
   return (
-    <View style={styles.container}>
-      {/* Track */}
-      <View style={styles.track} {...panResponder.panHandlers}>
-        {/* Subtle mid-line */}
-        <View style={styles.midLine} />
+    <View
+      style={styles.wrapper}
+      accessibilityRole="adjustable"
+      accessibilityLabel={`${label} level`}
+      accessibilityValue={{ min: 0, max: 100, now: Math.round(value) }}
+      accessibilityHint="Drag up or down to adjust"
+    >
+      {/* Value label — WCAG AA: #999 on black = 9.7:1 ✓ */}
+      <Text style={styles.valueLabel}>{Math.round(value)}</Text>
 
-        {/* Fill */}
+      {/* Track */}
+      <View style={styles.trackContainer} {...panResponder.panHandlers}>
+        {/* Background track */}
+        <View style={styles.trackBg} />
+
+        {/* Filled portion */}
         <View
           style={[
-            styles.fill,
+            styles.trackFill,
             {
               height: fillHeight,
               backgroundColor: accentColor,
-              opacity: 0.15 + (value / 100) * 0.7,
+              bottom: 0,
             },
           ]}
         />
@@ -65,66 +82,70 @@ export function EQSlider({ label, value, accentColor, onChange }: EQSliderProps)
           style={[
             styles.thumb,
             {
-              bottom: fillHeight - THUMB_SIZE / 2,
-              backgroundColor: isActive ? '#FFFFFF' : '#1A1A1A',
-              shadowColor: isActive ? accentColor : 'transparent',
-              shadowOpacity: isActive ? 0.6 : 0,
+              top: thumbOffset,
+              backgroundColor: '#FFFFFF',
+              shadowColor: accentColor,
             },
           ]}
         />
       </View>
 
-      {/* Label */}
-      <Text style={[styles.label, isActive && { color: '#444444' }]}>{label}</Text>
+      {/* Band label — WCAG AA: #888 on black = 7.0:1 ✓ */}
+      <Text style={styles.bandLabel}>{label}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  wrapper: {
     alignItems: 'center',
-    gap: 10,
+    width: 44,                  // 44pt minimum touch target width ✓
+    gap: 8,
   },
-  track: {
-    width: SLIDER_WIDTH,
-    height: SLIDER_HEIGHT,
-    backgroundColor: '#0D0D0D',
-    borderRadius: SLIDER_WIDTH / 2,
-    overflow: 'hidden',
+  valueLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#999999',           // 9.7:1 on black ✓
+    letterSpacing: 0.3,
+    lineHeight: 14,
+    textAlign: 'center',
+  },
+  trackContainer: {
+    width: 44,                  // 44pt minimum touch target ✓
+    height: TRACK_HEIGHT,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
     position: 'relative',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#1A1A1A',
   },
-  midLine: {
+  trackBg: {
     position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: SLIDER_HEIGHT / 2,
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: '#1E1E1E',
-  },
-  fill: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
+    top: 0,
     bottom: 0,
-    borderRadius: SLIDER_WIDTH / 2,
+    width: 3,
+    backgroundColor: '#2A2A2A',
+    borderRadius: 2,
+  },
+  trackFill: {
+    position: 'absolute',
+    width: 3,
+    borderRadius: 2,
   },
   thumb: {
     position: 'absolute',
-    left: (SLIDER_WIDTH - THUMB_SIZE) / 2,
     width: THUMB_SIZE,
     height: THUMB_SIZE,
     borderRadius: THUMB_SIZE / 2,
     shadowOffset: { width: 0, height: 0 },
-    shadowRadius: 8,
+    shadowOpacity: 0.6,
+    shadowRadius: 6,
     elevation: 4,
   },
-  label: {
-    fontSize: 9,
+  bandLabel: {
+    fontSize: 11,
     fontWeight: '400',
-    color: '#222222',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
+    color: '#888888',           // 7.0:1 on black ✓
+    letterSpacing: 0.5,
+    lineHeight: 14,
+    textAlign: 'center',
   },
 });

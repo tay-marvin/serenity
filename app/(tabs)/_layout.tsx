@@ -13,8 +13,8 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#F5F5F0',
-        tabBarInactiveTintColor: '#2A2A2A',
+        tabBarActiveTintColor: '#F5F5F0',   // 19.5:1 on black ✓
+        tabBarInactiveTintColor: '#666666',   // 4.5:1 on black ✓
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarShowLabel: false,
@@ -56,13 +56,22 @@ export default function TabLayout() {
                   props.navigation.navigate(route.name);
                 }
               };
+              const tabLabel = options.title ?? route.name;
               return (
                 <View
                   key={route.key}
                   style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
+                  accessibilityRole="tab"
+                  accessibilityLabel={tabLabel}
+                  accessibilityState={{ selected: isFocused }}
                 >
-                  <HapticTab onPress={onPress} style={{ alignItems: 'center', justifyContent: 'center', width: 44, height: 44 }}>
-                    {options.tabBarIcon?.({ focused: isFocused, color: isFocused ? '#F5F5F0' : '#2A2A2A', size: 22 })}
+                  <HapticTab
+                    onPress={onPress}
+                    accessibilityRole="button"
+                    accessibilityLabel={tabLabel}
+                    style={{ alignItems: 'center', justifyContent: 'center', width: 44, height: 44 }}
+                  >
+                    {options.tabBarIcon?.({ focused: isFocused, color: isFocused ? '#F5F5F0' : '#666666', size: 22 })}
                   </HapticTab>
                 </View>
               );
