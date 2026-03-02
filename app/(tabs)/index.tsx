@@ -1,48 +1,185 @@
-import { ScrollView, Text, View, TouchableOpacity } from "react-native";
+import React, { useCallback } from 'react';
+import {
+  FlatList,
+  StyleSheet,
+  Text,
+  View,
+  Platform,
+} from 'react-native';
+import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { SoundCard } from '@/components/sound-card';
+import { useAudioEngine } from '@/lib/audio-engine';
+import { SOUNDSCAPES } from '@/lib/sounds';
+import * as Haptics from 'expo-haptics';
 
-import { ScreenContainer } from "@/components/screen-container";
+const CATEGORIES = ['All', 'Rain', 'Water', 'Nature', 'Fire', 'Storm', 'Wind', 'Urban', 'Noise', 'Cosmic'];
 
-/**
- * Home Screen - NativeWind Example
- *
- * This template uses NativeWind (Tailwind CSS for React Native).
- * You can use familiar Tailwind classes directly in className props.
- *
- * Key patterns:
- * - Use `className` instead of `style` for most styling
- * - Theme colors: use tokens directly (bg-background, text-foreground, bg-primary, etc.); no dark: prefix needed
- * - Responsive: standard Tailwind breakpoints work on web
- * - Custom colors defined in tailwind.config.js
- */
 export default function HomeScreen() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { activeSoundscapeId, isPlaying, play, pause, resume, favorites } = useAudioEngine();
+  const [selectedCategory, setSelectedCategory] = React.useState('All');
+
+  const filteredSounds = selectedCategory === 'All'
+    ? SOUNDSCAPES
+    : SOUNDSCAPES.filter(s => s.category === selectedCategory);
+
+  const handleCardPress = useCallback((id: string) => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    router.push({ pathname: '/mixer/[id]' as any, params: { id } });
+  }, [router]);
+
+  const renderItem = useCallback(({ item, index }: { item: typeof SOUNDSCAPES[0]; index: number }) => (
+    <View style={[styles.cardWrapper, index % 2 === 0 ? styles.cardLeft : styles.cardRight]}>
+      <SoundCard
+        soundscape={item}
+        isPlaying={activeSoundscapeId === item.id && isPlaying}
+        isFavorite={favorites.includes(item.id)}
+        onPress={() => handleCardPress(item.id)}
+      />
+    </View>
+  ), [activeSoundscapeId, isPlaying, favorites, handleCardPress]);
+
+  const tabBarHeight = Platform.OS === 'web' ? 68 : 80 + insets.bottom;
+  const miniPlayerHeight = activeSoundscapeId ? 64 : 0;
+  const bottomPad = tabBarHeight + miniPlayerHeight + 16;
+
   return (
-    <ScreenContainer className="p-6">
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-        <View className="flex-1 gap-8">
-          {/* Hero Section */}
-          <View className="items-center gap-2">
-            <Text className="text-4xl font-bold text-foreground">Welcome</Text>
-            <Text className="text-base text-muted text-center">
-              Edit app/(tabs)/index.tsx to get started
-            </Text>
-          </View>
+    <View style={styles.container}>
+      {/* Background gradient */}
+      <LinearGradient
+        colors={['#0D0D1A', '#080810']}
+        style={StyleSheet.absoluteFill}
+      />
 
-          {/* Example Card */}
-          <View className="w-full max-w-sm self-center bg-surface rounded-2xl p-6 shadow-sm border border-border">
-            <Text className="text-lg font-semibold text-foreground mb-2">NativeWind Ready</Text>
-            <Text className="text-sm text-muted leading-relaxed">
-              Use Tailwind CSS classes directly in your React Native components.
-            </Text>
-          </View>
+      <FlatList
+        data={filteredSounds}
+        renderItem={renderItem}
+        keyExtractor={item => item.id}
+        numColumns={2}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[
+          styles.listContent,
+          { paddingTop: insets.top + 100, paddingBottom: bottomPad },
+        ]}
+        columnWrapperStyle={styles.row}
+        ListHeaderComponent={null}
+      />
 
-          {/* Example Button */}
-          <View className="items-center">
-            <TouchableOpacity className="bg-primary px-6 py-3 rounded-full active:opacity-80">
-              <Text className="text-background font-semibold">Get Started</Text>
-            </TouchableOpacity>
-          </View>
+      {/* Fixed header overlay */}
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+        <LinearGradient
+          colors={['rgba(8,8,16,1)', 'rgba(8,8,16,0.95)', 'rgba(8,8,16,0)']}
+          style={StyleSheet.absoluteFill}
+        />
+        <View style={styles.headerContent}>
+          <Text style={styles.appTitle}>Serenity</Text>
+          <Text style={styles.appSubtitle}>Tune your mind</Text>
         </View>
-      </ScrollView>
-    </ScreenContainer>
+
+        {/* Category filter */}
+        <FlatList
+          data={CATEGORIES}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          keyExtractor={c => c}
+          contentContainerStyle={styles.categoryList}
+          renderItem={({ item }) => (
+            <View
+              style={[
+                styles.categoryChip,
+                selectedCategory === item && styles.categoryChipActive,
+              ]}
+            >
+              <Text
+                onPress={() => setSelectedCategory(item)}
+                style={[
+                  styles.categoryText,
+                  selectedCategory === item && styles.categoryTextActive,
+                ]}
+              >
+                {item}
+              </Text>
+            </View>
+          )}
+        />
+      </View>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#080810',
+  },
+  header: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+    paddingBottom: 12,
+  },
+  headerContent: {
+    paddingHorizontal: 20,
+    marginBottom: 14,
+  },
+  appTitle: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#F0F0FF',
+    letterSpacing: -0.5,
+  },
+  appSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.4)',
+    marginTop: 2,
+  },
+  categoryList: {
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  categoryChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    marginRight: 8,
+  },
+  categoryChipActive: {
+    backgroundColor: '#7C3AED',
+    borderColor: '#7C3AED',
+  },
+  categoryText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.5)',
+  },
+  categoryTextActive: {
+    color: '#FFFFFF',
+  },
+  listContent: {
+    paddingHorizontal: 16,
+  },
+  row: {
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  cardWrapper: {
+    flex: 1,
+  },
+  cardLeft: {
+    marginRight: 6,
+  },
+  cardRight: {
+    marginLeft: 6,
+  },
+});

@@ -1,0 +1,26 @@
+# Serenity — Project TODO
+
+- [x] Configure theme colors (dark violet/teal palette)
+- [x] Update app.config.ts with app name and branding
+- [x] Generate app icon/logo (violet/teal waveform ripple)
+- [x] Install required packages (expo-blur, expo-linear-gradient)
+- [x] Define sound data model and soundscape library (12 soundscapes)
+- [x] Build Home screen with 2-column soundscape grid and category filter
+- [x] Build SoundCard component with image + gradient overlay + playing indicator
+- [x] Build MiniPlayer persistent bar above tab bar
+- [x] Build Mixer screen with full-bleed background image
+- [x] Build EQSlider vertical slider component (10 bands)
+- [x] Build PresetChip component on mixer screen
+- [x] Implement audio engine with single looping track + EQ volume shaping
+- [x] Wire EQ sliders to audio volume in real-time
+- [x] Implement preset snap (apply preset levels)
+- [x] Build Timer bottom sheet modal
+- [x] Implement sleep timer with fade-out
+- [x] Implement meditation bell with interval
+- [x] Build Favorites tab screen
+- [x] Add keep-awake during playback
+- [x] Add haptic feedback on interactions
+- [x] Icon symbol mappings for all needed SF Symbols
+- [x] Unit tests for sounds data model and volume calculation
+- [ ] Polish: animated waveform bars in MiniPlayer
+- [ ] Polish: Ken Burns background animation on mixer screen

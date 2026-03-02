@@ -14,10 +14,52 @@ type IconSymbolName = keyof typeof MAPPING;
  * - see SF Symbols in the [SF Symbols](https://developer.apple.com/sf-symbols/) app.
  */
 const MAPPING = {
+  // Navigation
   "house.fill": "home",
+  "chevron.left": "chevron-left",
+  "chevron.right": "chevron-right",
+  "xmark": "close",
   "paperplane.fill": "send",
   "chevron.left.forwardslash.chevron.right": "code",
-  "chevron.right": "chevron-right",
+
+  // Playback
+  "play.fill": "play-arrow",
+  "pause.fill": "pause",
+  "stop.fill": "stop",
+  "forward.fill": "skip-next",
+  "backward.fill": "skip-previous",
+
+  // Audio
+  "waveform": "graphic-eq",
+  "speaker.wave.1.fill": "volume-down",
+  "speaker.wave.2.fill": "volume-up",
+  "speaker.slash.fill": "volume-off",
+  "music.note": "music-note",
+
+  // UI
+  "heart.fill": "favorite",
+  "heart": "favorite-border",
+  "star.fill": "star",
+  "star": "star-border",
+  "timer": "timer",
+  "bell.fill": "notifications",
+  "bell": "notifications-none",
+  "gearshape.fill": "settings",
+  "moon.fill": "nightlight-round",
+  "sun.max.fill": "wb-sunny",
+  "magnifyingglass": "search",
+  "plus": "add",
+  "minus": "remove",
+  "checkmark": "check",
+  "shuffle": "shuffle",
+  "repeat": "repeat",
+  "list.bullet": "list",
+  "square.grid.2x2.fill": "grid-view",
+  "arrow.left": "arrow-back",
+  "arrow.right": "arrow-forward",
+  "info.circle": "info",
+  "ellipsis": "more-horiz",
+  "ellipsis.circle": "more-vert",
 } as IconMapping;
 
 /**
