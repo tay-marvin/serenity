@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   FlatList,
   Pressable,
   StyleSheet,
   Text,
   View,
-  useColorScheme,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,12 +13,13 @@ import { SOUNDSCAPES } from '@/lib/sounds';
 import type { Soundscape } from '@/lib/sounds';
 import * as Haptics from 'expo-haptics';
 import { Platform } from 'react-native';
+import { useThemeContext } from '@/lib/theme-provider';
 
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const scheme = useColorScheme() ?? 'light';
-  const isDark = scheme === 'dark';
+  const { colorScheme, toggleColorScheme } = useThemeContext();
+  const isDark = colorScheme === 'dark';
   const C = isDark ? DARK : LIGHT;
 
   const { activeSoundscapeId, isPlaying } = useAudioEngine();
@@ -27,6 +27,11 @@ export default function HomeScreen() {
   const handlePress = (sound: Soundscape) => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push(`/mixer/${sound.id}` as any);
+  };
+
+  const handleToggleTheme = () => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    toggleColorScheme();
   };
 
   const renderItem = ({ item, index }: { item: Soundscape; index: number }) => {
@@ -79,8 +84,24 @@ export default function HomeScreen() {
     <View style={[styles.container, { backgroundColor: C.bg, paddingTop: insets.top }]}>
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: C.border }]}>
-        <Text style={[styles.appTitle, { color: C.text }]}>Serenity</Text>
-        <Text style={[styles.appSubtitle, { color: C.muted }]}>TUNE YOUR MIND</Text>
+        <View style={styles.headerLeft}>
+          <Text style={[styles.appTitle, { color: C.text }]}>Serenity</Text>
+          <Text style={[styles.appSubtitle, { color: C.muted }]}>TUNE YOUR MIND</Text>
+        </View>
+        <Pressable
+          onPress={handleToggleTheme}
+          accessibilityRole="button"
+          accessibilityLabel={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+          style={({ pressed }) => [
+            styles.themeToggle,
+            { borderColor: C.border },
+            pressed && { opacity: 0.5 },
+          ]}
+        >
+          <Text style={[styles.themeToggleIcon, { color: C.text }]}>
+            {isDark ? '○' : '●'}
+          </Text>
+        </Pressable>
       </View>
 
       {/* Sound list */}
@@ -118,7 +139,25 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 20,
     borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+  },
+  headerLeft: {
     gap: 4,
+  },
+  themeToggle: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 22,
+    marginBottom: 2,
+  },
+  themeToggleIcon: {
+    fontSize: 18,
+    lineHeight: 22,
   },
   appTitle: {
     fontFamily: 'PlayfairDisplay-Regular',

@@ -122,3 +122,10 @@
 ## Bug Fixes (Round 2)
 
 - [x] Remove duplicate Volume section header on mixer screen
+
+## Light/Dark Mode Toggle
+
+- [x] Add manual theme override context (overrides system setting)
+- [x] Persist theme preference to AsyncStorage
+- [x] Add sun/moon toggle button to Home screen header
+- [x] Wire all screens to read from theme context instead of useColorScheme directly
