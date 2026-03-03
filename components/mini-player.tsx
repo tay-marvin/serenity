@@ -6,16 +6,23 @@ import { useAudioEngine } from '@/lib/audio-engine';
 import { SOUNDSCAPES } from '@/lib/sounds';
 import * as Haptics from 'expo-haptics';
 
-export function MiniPlayer() {
+interface MiniPlayerProps {
+  isDark?: boolean;
+}
+
+export function MiniPlayer({ isDark = true }: MiniPlayerProps) {
   const { activeSoundscapeId, isPlaying, pause, resume } = useAudioEngine();
   const router = useRouter();
+
+  const bg = isDark ? '#000000' : '#FFFFFF';
+  const borderColor = isDark ? '#222222' : '#E0E0E0';
+  const textColor = isDark ? '#FFFFFF' : '#000000';
+  const mutedColor = isDark ? '#888888' : '#666666';
 
   if (!activeSoundscapeId) return null;
 
   const soundscape = SOUNDSCAPES.find(s => s.id === activeSoundscapeId);
   if (!soundscape) return null;
-
-  const accent = soundscape.color;
 
   const handlePlayPause = (e: any) => {
     e.stopPropagation?.();
@@ -33,28 +40,20 @@ export function MiniPlayer() {
       onPress={handleOpen}
       accessibilityRole="button"
       accessibilityLabel={`Now playing: ${soundscape.name}. Tap to open mixer.`}
-      style={({ pressed }) => [styles.wrapper, pressed && { opacity: 0.7 }]}
+      style={({ pressed }) => [
+        styles.wrapper,
+        { backgroundColor: bg, borderTopColor: borderColor },
+        pressed && { opacity: 0.6 },
+      ]}
     >
-      {/* Hairline top border */}
-      <View style={[styles.topLine, { backgroundColor: accent, opacity: 0.25 }]} />
-
       <View style={styles.container}>
-        {/* Animated bars when playing */}
-        {isPlaying && (
-          <View style={styles.bars}>
-            {[6, 11, 7, 13, 8].map((h, i) => (
-              <View key={i} style={[styles.bar, { height: h, backgroundColor: accent }]} />
-            ))}
-          </View>
-        )}
-
-        {/* Sound name in accent color */}
+        {/* Sound name */}
         <View style={styles.info}>
-          <Text style={[styles.name, { color: accent }]} numberOfLines={1}>
+          <Text style={[styles.name, { color: textColor, fontFamily: 'PlayfairDisplay-Italic' }]} numberOfLines={1}>
             {soundscape.name}
           </Text>
-          <Text style={styles.status}>
-            {isPlaying ? 'now playing' : 'paused'}
+          <Text style={[styles.status, { color: mutedColor }]}>
+            {isPlaying ? 'NOW PLAYING' : 'PAUSED'}
           </Text>
         </View>
 
@@ -68,8 +67,8 @@ export function MiniPlayer() {
         >
           <IconSymbol
             name={isPlaying ? 'pause.fill' : 'play.fill'}
-            size={18}
-            color={accent}
+            size={16}
+            color={textColor}
           />
         </Pressable>
       </View>
@@ -79,49 +78,33 @@ export function MiniPlayer() {
 
 const styles = StyleSheet.create({
   wrapper: {
-    backgroundColor: '#000000',
     paddingHorizontal: 24,
     paddingVertical: 14,
-  },
-  topLine: {
-    position: 'absolute',
-    top: 0,
-    left: 24,
-    right: 24,
-    height: StyleSheet.hairlineWidth,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
   container: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
   },
-  bars: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2.5,
-  },
-  bar: {
-    width: 2.5,
-    borderRadius: 2,
-    opacity: 0.8,
-  },
   info: {
     flex: 1,
-    gap: 2,
+    gap: 3,
   },
   name: {
-    fontSize: 16,
-    fontWeight: '300',
-    letterSpacing: -0.2,
+    fontSize: 18,
+    fontWeight: '400',
+    letterSpacing: -0.3,
+    lineHeight: 22,
   },
   status: {
-    fontSize: 12,
-    color: '#888888',           // 7.0:1 on black ✓
-    letterSpacing: 0.5,
-    lineHeight: 16,
+    fontSize: 9,
+    fontWeight: '400',
+    letterSpacing: 2.5,
+    lineHeight: 14,
   },
   btn: {
-    width: 44,                  // 44pt minimum touch target ✓
+    width: 44,
     height: 44,
     alignItems: 'center',
     justifyContent: 'center',

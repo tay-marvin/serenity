@@ -1,190 +1,185 @@
-import React, { useCallback } from 'react';
+import React, { useState } from 'react';
 import {
   FlatList,
+  Pressable,
   StyleSheet,
   Text,
   View,
-  Pressable,
-  Platform,
+  useColorScheme,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAudioEngine } from '@/lib/audio-engine';
 import { SOUNDSCAPES } from '@/lib/sounds';
+import type { Soundscape } from '@/lib/sounds';
 import * as Haptics from 'expo-haptics';
-
-// WCAG AA contrast color palette (on #000000 background)
-const C = {
-  textPrimary: '#F5F5F0',   // 19.5:1 on black ✓
-  textSecondary: '#999999', // 9.7:1 on black ✓
-  textTertiary: '#777777',  // 5.9:1 on black ✓
-  separator: '#2A2A2A',
-  bg: '#000000',
-};
+import { Platform } from 'react-native';
 
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { activeSoundscapeId, isPlaying, favorites } = useAudioEngine();
+  const scheme = useColorScheme() ?? 'light';
+  const isDark = scheme === 'dark';
+  const C = isDark ? DARK : LIGHT;
 
-  const tabBarH = Platform.OS === 'web' ? 60 : 48 + insets.bottom;
-  const miniPlayerH = activeSoundscapeId ? 80 : 0;
+  const { activeSoundscapeId, isPlaying } = useAudioEngine();
 
-  const handlePress = useCallback((id: string) => {
+  const handlePress = (sound: Soundscape) => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push({ pathname: '/mixer/[id]' as any, params: { id } });
-  }, [router]);
+    router.push(`/mixer/${sound.id}` as any);
+  };
 
-  const renderItem = useCallback(({ item }: { item: typeof SOUNDSCAPES[0] }) => {
-    const active = activeSoundscapeId === item.id && isPlaying;
-    const isFav = favorites.includes(item.id);
-
+  const renderItem = ({ item, index }: { item: Soundscape; index: number }) => {
+    const isActive = activeSoundscapeId === item.id && isPlaying;
     return (
       <Pressable
-        onPress={() => handlePress(item.id)}
+        onPress={() => handlePress(item)}
         accessibilityRole="button"
-        accessibilityLabel={`${item.name}, ${item.category}${active ? ', now playing' : ''}${isFav ? ', saved' : ''}`}
-        accessibilityHint="Opens the sound mixer"
-        style={({ pressed }) => [styles.row, pressed && { opacity: 0.55 }]}
+        accessibilityLabel={`${item.name}, ${item.category}${isActive ? ', now playing' : ''}`}
+        style={({ pressed }) => [
+          styles.row,
+          { borderBottomColor: C.border },
+          pressed && { opacity: 0.5 },
+        ]}
       >
-        <View style={styles.rowInner}>
-          {/* Large colored sound name */}
-          <Text style={[styles.soundName, { color: item.color }]} numberOfLines={1}>
-            {item.name}
-          </Text>
+        {/* Index number — Co-Star uses small numerals in lists */}
+        <Text style={[styles.rowIndex, { color: C.muted }]}>
+          {String(index + 1).padStart(2, '0')}
+        </Text>
 
-          <View style={styles.rowMeta}>
-            <Text style={styles.categoryLabel} accessibilityElementsHidden>
-              {item.category}
+        {/* Sound name */}
+        <Text
+          style={[
+            styles.rowName,
+            { color: isActive ? C.text : C.text },
+            isActive && styles.rowNameActive,
+          ]}
+          numberOfLines={1}
+        >
+          {item.name}
+        </Text>
+
+        {/* Right side: playing indicator or category */}
+        <View style={styles.rowRight}>
+          {isActive ? (
+            <View style={styles.playingDot}>
+              <View style={[styles.dot, { backgroundColor: C.text }]} />
+            </View>
+          ) : (
+            <Text style={[styles.rowCategory, { color: C.muted }]}>
+              {item.category.toUpperCase()}
             </Text>
-            {isFav && (
-              <Text
-                style={[styles.favDot, { color: item.color }]}
-                accessibilityElementsHidden
-              >
-                ♥
-              </Text>
-            )}
-            {active && (
-              <View style={styles.playingDots} accessibilityElementsHidden>
-                {[5, 9, 6, 11, 7].map((h, i) => (
-                  <View key={i} style={[styles.bar, { height: h, backgroundColor: item.color }]} />
-                ))}
-              </View>
-            )}
-          </View>
+          )}
         </View>
-
-        <View style={styles.separator} />
       </Pressable>
     );
-  }, [activeSoundscapeId, isPlaying, favorites, handlePress]);
+  };
 
   return (
-    <View style={styles.root} accessibilityRole="none">
-      {/* Fixed header */}
-      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
-        <Text style={styles.appTitle} accessibilityRole="header">
-          serenity
-        </Text>
-        <Text style={styles.appSub}>tune your mind</Text>
+    <View style={[styles.container, { backgroundColor: C.bg, paddingTop: insets.top }]}>
+      {/* Header */}
+      <View style={[styles.header, { borderBottomColor: C.border }]}>
+        <Text style={[styles.appTitle, { color: C.text }]}>Serenity</Text>
+        <Text style={[styles.appSubtitle, { color: C.muted }]}>TUNE YOUR MIND</Text>
       </View>
 
       {/* Sound list */}
       <FlatList
         data={SOUNDSCAPES}
-        keyExtractor={item => item.id}
+        keyExtractor={(item) => item.id}
         renderItem={renderItem}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 80 }}
         showsVerticalScrollIndicator={false}
-        accessibilityRole="list"
-        contentContainerStyle={[
-          styles.list,
-          {
-            paddingTop: insets.top + 100,
-            paddingBottom: tabBarH + miniPlayerH + 24,
-          },
-        ]}
       />
     </View>
   );
 }
 
+// ─── Color tokens ─────────────────────────────────────────────────────────────
+const LIGHT = {
+  bg:     '#FFFFFF',
+  text:   '#000000',
+  muted:  '#666666',
+  border: '#E0E0E0',
+};
+const DARK = {
+  bg:     '#000000',
+  text:   '#FFFFFF',
+  muted:  '#888888',
+  border: '#222222',
+};
+
 const styles = StyleSheet.create({
-  root: {
+  container: {
     flex: 1,
-    backgroundColor: C.bg,
   },
   header: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 20,
-    paddingBottom: 16,
-    backgroundColor: C.bg,
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 20,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: 4,
   },
   appTitle: {
-    fontSize: 34,
-    fontWeight: '300',
-    color: C.textPrimary,
+    fontFamily: 'PlayfairDisplay-Regular',
+    fontSize: 32,
+    fontWeight: '400',
     letterSpacing: -0.5,
-    paddingHorizontal: 24,
-    marginBottom: 4,
+    lineHeight: 38,
   },
-  appSub: {
-    fontSize: 14,
-    color: C.textSecondary,
-    letterSpacing: 0.5,
-    paddingHorizontal: 24,
-    lineHeight: 20,
+  appSubtitle: {
+    fontSize: 10,
+    fontWeight: '400',
+    letterSpacing: 3,
+    lineHeight: 16,
   },
-  list: {
-    paddingHorizontal: 24,
-  },
-  row: {},
-  rowInner: {
-    paddingVertical: 16,
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    minHeight: 44,
+    paddingHorizontal: 24,
+    paddingVertical: 18,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    minHeight: 60,
   },
-  soundName: {
-    fontSize: 28,
-    fontWeight: '300',
-    letterSpacing: -0.3,
-    flex: 1,
-    lineHeight: 34,
-  },
-  rowMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginLeft: 12,
-  },
-  categoryLabel: {
-    fontSize: 12,
-    color: C.textTertiary,
+  rowIndex: {
+    fontSize: 11,
+    fontWeight: '400',
     letterSpacing: 1,
-    textTransform: 'uppercase',
-    lineHeight: 16,
+    width: 28,
+    lineHeight: 18,
   },
-  favDot: {
-    fontSize: 14,
-    lineHeight: 16,
+  rowName: {
+    flex: 1,
+    fontFamily: 'PlayfairDisplay-Regular',
+    fontSize: 22,
+    fontWeight: '400',
+    letterSpacing: -0.3,
+    lineHeight: 28,
   },
-  playingDots: {
-    flexDirection: 'row',
+  rowNameActive: {
+    fontFamily: 'PlayfairDisplay-Italic',
+  },
+  rowRight: {
+    width: 64,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
+  rowCategory: {
+    fontSize: 9,
+    fontWeight: '400',
+    letterSpacing: 2,
+    lineHeight: 14,
+    textAlign: 'right',
+  },
+  playingDot: {
+    width: 20,
+    height: 20,
     alignItems: 'center',
-    gap: 2,
+    justifyContent: 'center',
   },
-  bar: {
-    width: 2.5,
-    borderRadius: 2,
-    opacity: 0.9,
-  },
-  separator: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: C.separator,
+  dot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
   },
 });

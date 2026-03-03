@@ -8,6 +8,10 @@ import "react-native-reanimated";
 import { Platform } from "react-native";
 import "@/lib/_core/nativewind-pressable";
 import { ThemeProvider } from "@/lib/theme-provider";
+import { useFonts } from "expo-font";
+import * as SplashScreen from "expo-splash-screen";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+
 import {
   SafeAreaFrameContext,
   SafeAreaInsetsContext,
@@ -28,6 +32,18 @@ export const unstable_settings = {
 };
 
 export default function RootLayout() {
+  const colorScheme = useColorScheme();
+  const [fontsLoaded, fontError] = useFonts({
+    'PlayfairDisplay-Regular': require('../assets/fonts/PlayfairDisplay-Regular.ttf'),
+    'PlayfairDisplay-Italic': require('../assets/fonts/PlayfairDisplay-Italic.ttf'),
+  });
+
+  useEffect(() => {
+    if (fontsLoaded || fontError) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded, fontError]);
+
   const initialInsets = initialWindowMetrics?.insets ?? DEFAULT_WEB_INSETS;
   const initialFrame = initialWindowMetrics?.frame ?? DEFAULT_WEB_FRAME;
 
@@ -100,7 +116,7 @@ export default function RootLayout() {
               />
             </Stack>
           </AudioEngineProvider>
-          <StatusBar style="light" />
+          <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
         </QueryClientProvider>
       </trpc.Provider>
     </GestureHandlerRootView>

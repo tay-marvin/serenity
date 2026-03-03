@@ -105,3 +105,16 @@
 ## Bug Fixes
 
 - [x] Fix master volume slider — rebuilt with PanResponder (was broken inside ScrollView with Pressable responder)
+
+## Co-Star UI Redesign
+
+- [x] Theme: pure white bg, stark black text, no accent colors, hairline borders
+- [x] Typography: Playfair Display serif for headings, all-caps spaced sans for labels
+- [x] Home screen: editorial numbered list, all-caps spaced labels, hairline dividers
+- [x] Mixer screen: cold minimal sliders, black/white only, no gradients, square buttons
+- [x] Tab bar: ultra-minimal, tiny all-caps labels, hairline border, no color
+- [x] MiniPlayer: serif italic sound name, all-caps NOW PLAYING status, no color
+- [x] Remove all color accents from every component
+- [x] Implement light mode: pure white bg, black serif text, hairline rules
+- [x] Implement dark mode: pure black bg, white serif text, same editorial feel
+- [x] Auto-switch based on device system setting

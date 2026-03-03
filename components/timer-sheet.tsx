@@ -4,17 +4,16 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   View,
   Platform,
+  useColorScheme,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAudioEngine } from '@/lib/audio-engine';
 import * as Haptics from 'expo-haptics';
 
 const TIMER_OPTIONS = [5, 10, 15, 20, 30, 45, 60, 90];
-const BELL_OPTIONS = [5, 10, 15, 20, 30];
 
 interface TimerSheetProps {
   visible: boolean;
@@ -23,13 +22,18 @@ interface TimerSheetProps {
 }
 
 export function TimerSheet({ visible, onClose, accentColor }: TimerSheetProps) {
-  const { startTimer, cancelTimer, timerEndTime, bellEnabled, bellIntervalMinutes, setBell } = useAudioEngine();
+  const { startTimer, cancelTimer, timerEndTime } = useAudioEngine();
   const insets = useSafeAreaInsets();
+  const scheme = useColorScheme() ?? 'light';
+  const isDark = scheme === 'dark';
+
+  const bg = isDark ? '#0A0A0A' : '#FAFAFA';
+  const textColor = isDark ? '#FFFFFF' : '#000000';
+  const mutedColor = isDark ? '#888888' : '#666666';
+  const borderColor = isDark ? '#222222' : '#E0E0E0';
 
   const [selectedTimer, setSelectedTimer] = useState<number>(30);
   const [fadeOut, setFadeOut] = useState(true);
-  const [localBellEnabled, setLocalBellEnabled] = useState(bellEnabled);
-  const [selectedBell, setSelectedBell] = useState(bellIntervalMinutes ?? 10);
 
   const hasActiveTimer = timerEndTime !== null;
 
@@ -38,7 +42,6 @@ export function TimerSheet({ visible, onClose, accentColor }: TimerSheetProps) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
     startTimer(selectedTimer, fadeOut);
-    setBell(localBellEnabled, selectedBell);
     onClose();
   };
 
@@ -58,119 +61,120 @@ export function TimerSheet({ visible, onClose, accentColor }: TimerSheetProps) {
       onRequestClose={onClose}
     >
       <Pressable style={styles.backdrop} onPress={onClose} />
-      <View style={[styles.sheet, { paddingBottom: insets.bottom + 24 }]}>
+      <View style={[styles.sheet, { backgroundColor: bg, borderTopColor: borderColor, paddingBottom: insets.bottom + 24 }]}>
         <View style={styles.content}>
           {/* Handle */}
-          <View style={styles.handle} />
+          <View style={[styles.handle, { backgroundColor: borderColor }]} />
 
           {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.title}>sleep timer</Text>
-            <Pressable onPress={onClose} style={styles.closeBtn}>
-              <Text style={styles.closeBtnText}>done</Text>
+          <View style={[styles.header, { borderBottomColor: borderColor }]}>
+            <Text style={[styles.title, { color: textColor, fontFamily: 'PlayfairDisplay-Regular' }]}>
+              Sleep Timer
+            </Text>
+            <Pressable
+              onPress={onClose}
+              accessibilityRole="button"
+              accessibilityLabel="Close timer sheet"
+              style={({ pressed }) => [styles.closeBtn, pressed && { opacity: 0.5 }]}
+            >
+              <Text style={[styles.closeBtnText, { color: mutedColor }]}>DONE</Text>
             </Pressable>
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false}>
             {/* Timer duration */}
-            <Text style={styles.sectionLabel}>Duration</Text>
+            <View style={[styles.sectionHeader, { borderBottomColor: borderColor }]}>
+              <Text style={[styles.sectionLabel, { color: mutedColor }]}>DURATION</Text>
+            </View>
             <View style={styles.optionsGrid}>
-              {TIMER_OPTIONS.map(min => (
-                <Pressable
-                  key={min}
-                  onPress={() => setSelectedTimer(min)}
-                  style={[
-                    styles.optionChip,
-                    selectedTimer === min && { backgroundColor: accentColor, borderColor: accentColor },
-                  ]}
-                >
-                  <Text style={[
-                    styles.optionText,
-                    selectedTimer === min && styles.optionTextActive,
-                  ]}>
-                    {min < 60 ? `${min}m` : `${min / 60}h`}
-                  </Text>
-                </Pressable>
-              ))}
+              {TIMER_OPTIONS.map(min => {
+                const isSelected = selectedTimer === min;
+                return (
+                  <Pressable
+                    key={min}
+                    onPress={() => {
+                      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setSelectedTimer(min);
+                    }}
+                    accessibilityRole="radio"
+                    accessibilityLabel={`${min < 60 ? `${min} minutes` : `${min / 60} hour${min > 60 ? 's' : ''}`}`}
+                    accessibilityState={{ checked: isSelected }}
+                    style={({ pressed }) => [
+                      styles.optionChip,
+                      { borderColor: isSelected ? textColor : borderColor },
+                      isSelected && { backgroundColor: textColor },
+                      pressed && { opacity: 0.6 },
+                    ]}
+                  >
+                    <Text style={[
+                      styles.optionText,
+                      { color: isSelected ? bg : textColor },
+                    ]}>
+                      {min < 60 ? `${min}m` : `${min / 60}h`}
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
 
             {/* Fade out toggle */}
-            <View style={styles.toggleRow}>
+            <View style={[styles.toggleRow, { borderBottomColor: borderColor }]}>
               <View style={styles.toggleInfo}>
-                <Text style={styles.toggleLabel}>Fade Out</Text>
-                <Text style={styles.toggleDesc}>Gradually reduce volume before stopping</Text>
+                <Text style={[styles.toggleLabel, { color: textColor }]}>Fade Out</Text>
+                <Text style={[styles.toggleDesc, { color: mutedColor }]}>
+                  Gradually reduce volume before stopping
+                </Text>
               </View>
-              <Switch
-                value={fadeOut}
-                onValueChange={setFadeOut}
-                trackColor={{ false: '#333', true: accentColor }}
-                thumbColor="#FFFFFF"
-              />
+              <Pressable
+                onPress={() => {
+                  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  setFadeOut(v => !v);
+                }}
+                accessibilityRole="switch"
+                accessibilityLabel={fadeOut ? 'Fade out enabled' : 'Fade out disabled'}
+                accessibilityState={{ checked: fadeOut }}
+                style={({ pressed }) => [
+                  styles.toggleBtn,
+                  { borderColor: fadeOut ? textColor : borderColor },
+                  fadeOut && { backgroundColor: textColor },
+                  pressed && { opacity: 0.6 },
+                ]}
+              >
+                <Text style={[styles.toggleBtnText, { color: fadeOut ? bg : textColor }]}>
+                  {fadeOut ? 'ON' : 'OFF'}
+                </Text>
+              </Pressable>
             </View>
-
-            {/* Meditation bell */}
-            <View style={styles.toggleRow}>
-              <View style={styles.toggleInfo}>
-                <Text style={styles.toggleLabel}>Meditation Bell</Text>
-                <Text style={styles.toggleDesc}>Gentle chime at intervals</Text>
-              </View>
-              <Switch
-                value={localBellEnabled}
-                onValueChange={setLocalBellEnabled}
-                trackColor={{ false: '#333', true: accentColor }}
-                thumbColor="#FFFFFF"
-              />
-            </View>
-
-            {localBellEnabled && (
-              <>
-                <Text style={styles.sectionLabel}>Bell Interval</Text>
-                <View style={styles.optionsRow}>
-                  {BELL_OPTIONS.map(min => (
-                    <Pressable
-                      key={min}
-                      onPress={() => setSelectedBell(min)}
-                      style={[
-                        styles.optionChip,
-                        selectedBell === min && { backgroundColor: accentColor, borderColor: accentColor },
-                      ]}
-                    >
-                      <Text style={[
-                        styles.optionText,
-                        selectedBell === min && styles.optionTextActive,
-                      ]}>
-                        {min}m
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-              </>
-            )}
           </ScrollView>
 
           {/* Actions */}
-          <View style={styles.actions}>
+          <View style={[styles.actions, { borderTopColor: borderColor }]}>
             {hasActiveTimer && (
               <Pressable
                 onPress={handleCancel}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel active timer"
                 style={({ pressed }) => [
                   styles.cancelButton,
-                  pressed && { opacity: 0.7 },
+                  { borderColor },
+                  pressed && { opacity: 0.6 },
                 ]}
               >
-                <Text style={styles.cancelText}>Cancel Timer</Text>
+                <Text style={[styles.cancelText, { color: mutedColor }]}>CANCEL</Text>
               </Pressable>
             )}
             <Pressable
               onPress={handleStart}
+              accessibilityRole="button"
+              accessibilityLabel={hasActiveTimer ? 'Restart timer' : 'Start timer'}
               style={({ pressed }) => [
                 styles.startButton,
-                { backgroundColor: accentColor },
-                pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+                { backgroundColor: textColor },
+                pressed && { opacity: 0.8 },
               ]}
             >
-              <Text style={styles.startText}>
-                {hasActiveTimer ? 'Restart Timer' : 'Start Timer'}
+              <Text style={[styles.startText, { color: bg }]}>
+                {hasActiveTimer ? 'RESTART' : 'START'}
               </Text>
             </Pressable>
           </View>
@@ -183,24 +187,18 @@ export function TimerSheet({ visible, onClose, accentColor }: TimerSheetProps) {
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   sheet: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    backgroundColor: '#0A0A0A',
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderColor: '#1A1A1A',
     maxHeight: '80%',
   },
   content: {
     padding: 24,
   },
   handle: {
-    width: 36,
-    height: 3,
-    backgroundColor: '#2A2A2A',
-    borderRadius: 2,
+    width: 32,
+    height: 1,
     alignSelf: 'center',
     marginBottom: 28,
   },
@@ -208,110 +206,130 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 28,
+    paddingBottom: 20,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    marginBottom: 0,
   },
   title: {
     fontSize: 28,
-    fontWeight: '300',
-    color: '#F5F5F0',
-    letterSpacing: -0.3,
+    fontWeight: '400',
+    letterSpacing: -0.5,
+    lineHeight: 34,
   },
   closeBtn: {
-    padding: 4,
+    paddingVertical: 8,
+    paddingLeft: 16,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   closeBtnText: {
-    fontSize: 14,
-    color: '#444444',
-    letterSpacing: 0.5,
+    fontSize: 9,
+    fontWeight: '400',
+    letterSpacing: 3,
+    lineHeight: 14,
+  },
+  sectionHeader: {
+    paddingVertical: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    marginBottom: 20,
   },
   sectionLabel: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: '#333333',
-    textTransform: 'uppercase',
-    letterSpacing: 2,
-    marginBottom: 12,
-    marginTop: 8,
+    fontSize: 10,
+    fontWeight: '400',
+    letterSpacing: 3,
+    lineHeight: 16,
   },
   optionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 20,
-  },
-  optionsRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 20,
-    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 8,
   },
   optionChip: {
-    paddingHorizontal: 18,
+    paddingHorizontal: 16,
     paddingVertical: 10,
-    borderRadius: 24,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#1E1E1E',
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   optionText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '400',
-    color: '#3A3A3A',
-    letterSpacing: 0.3,
-  },
-  optionTextActive: {
-    color: '#F5F5F0',
+    letterSpacing: 1,
+    lineHeight: 18,
   },
   toggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
+    paddingVertical: 20,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#1A1A1A',
-    gap: 12,
+    gap: 16,
   },
   toggleInfo: {
     flex: 1,
-    gap: 3,
+    gap: 4,
   },
   toggleLabel: {
-    fontSize: 15,
-    fontWeight: '300',
-    color: '#F5F5F0',
+    fontFamily: 'PlayfairDisplay-Regular',
+    fontSize: 18,
+    fontWeight: '400',
+    letterSpacing: -0.2,
+    lineHeight: 24,
   },
   toggleDesc: {
     fontSize: 12,
-    color: '#333333',
+    fontWeight: '400',
     letterSpacing: 0.2,
+    lineHeight: 18,
+  },
+  toggleBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+    minHeight: 44,
+    minWidth: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  toggleBtnText: {
+    fontSize: 9,
+    fontWeight: '400',
+    letterSpacing: 3,
+    lineHeight: 14,
   },
   actions: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 20,
+    gap: 10,
+    marginTop: 24,
+    paddingTop: 24,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
   cancelButton: {
     flex: 1,
     paddingVertical: 16,
-    borderRadius: 24,
     alignItems: 'center',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#1E1E1E',
+    minHeight: 52,
+    justifyContent: 'center',
   },
   cancelText: {
-    fontSize: 14,
+    fontSize: 9,
     fontWeight: '400',
-    color: '#3A3A3A',
-    letterSpacing: 0.3,
+    letterSpacing: 3,
+    lineHeight: 14,
   },
   startButton: {
     flex: 2,
     paddingVertical: 16,
-    borderRadius: 24,
     alignItems: 'center',
+    minHeight: 52,
+    justifyContent: 'center',
   },
   startText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#000000',
-    letterSpacing: 0.3,
+    fontSize: 9,
+    fontWeight: '400',
+    letterSpacing: 3,
+    lineHeight: 14,
   },
 });

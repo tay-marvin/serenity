@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -8,6 +8,7 @@ import {
   Platform,
   Dimensions,
   PanResponder,
+  useColorScheme,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,34 +22,21 @@ import * as Haptics from 'expo-haptics';
 
 const { width } = Dimensions.get('window');
 
-// WCAG AA contrast values (on #000000)
-const C = {
-  textPrimary:   '#F5F5F0',   // 19.5:1 ✓
-  textSecondary: '#999999',   // 9.7:1 ✓
-  textTertiary:  '#777777',   // 5.9:1 ✓
-  textInactive:  '#666666',   // 4.5:1 ✓
-  iconInactive:  '#888888',   // 7.0:1 ✓
-  separator:     '#2A2A2A',
-  bg:            '#000000',
-};
-
 // ─── Horizontal Volume Slider ──────────────────────────────────────────────
-// Uses PanResponder so it works reliably inside a ScrollView.
-// The ScrollView's horizontal scroll is disabled on this axis; we capture
-// the gesture ourselves and call setMasterVolume on every move event.
 function VolumeSlider({
   value,
-  accentColor,
   onChange,
+  isDark,
 }: {
   value: number;
-  accentColor: string;
   onChange: (v: number) => void;
+  isDark: boolean;
 }) {
+  const C = isDark ? DARK : LIGHT;
   const startXRef = useRef(0);
   const startValRef = useRef(value);
   const lastHapticRef = useRef(value);
-  const trackWidth = width - 48; // matches horizontal padding
+  const trackWidth = width - 48;
 
   const panResponder = useRef(
     PanResponder.create({
@@ -71,14 +59,13 @@ function VolumeSlider({
     })
   ).current;
 
-  const fillPct = `${value}%` as `${number}%`;
   const thumbLeft = (value / 100) * trackWidth;
 
   return (
-    <View style={volStyles.section}>
-      <View style={volStyles.header}>
-        <Text style={volStyles.label}>Volume</Text>
-        <Text style={[volStyles.valueText, { color: accentColor }]}>{Math.round(value)}</Text>
+    <View style={{ marginBottom: 8 }}>
+      <View style={[volStyles.header, { borderBottomColor: C.border }]}>
+        <Text style={[volStyles.label, { color: C.muted }]}>VOLUME</Text>
+        <Text style={[volStyles.valueText, { color: C.text }]}>{Math.round(value)}</Text>
       </View>
       <View
         style={volStyles.trackWrap}
@@ -88,45 +75,34 @@ function VolumeSlider({
         accessibilityHint="Drag left or right to adjust"
         {...panResponder.panHandlers}
       >
-        {/* Background track */}
-        <View style={volStyles.trackBg} />
-        {/* Filled portion */}
-        <View style={[volStyles.trackFill, { width: fillPct, backgroundColor: accentColor }]} />
-        {/* Thumb */}
-        <View
-          style={[
-            volStyles.thumb,
-            { left: thumbLeft - 8, shadowColor: accentColor },
-          ]}
-        />
+        <View style={[volStyles.trackBg, { backgroundColor: C.border }]} />
+        <View style={[volStyles.trackFill, { width: `${value}%` as any, backgroundColor: C.text }]} />
+        <View style={[volStyles.thumb, { left: thumbLeft - 8, backgroundColor: C.text }]} />
       </View>
     </View>
   );
 }
 
 const volStyles = StyleSheet.create({
-  section: {
-    marginBottom: 8,
-  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    paddingVertical: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    marginBottom: 16,
   },
   label: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: '#F5F5F0',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    lineHeight: 20,
+    fontSize: 10,
+    fontWeight: '400',
+    letterSpacing: 3,
+    lineHeight: 16,
   },
   valueText: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 13,
+    fontWeight: '400',
     letterSpacing: 1,
-    lineHeight: 20,
+    lineHeight: 18,
   },
   trackWrap: {
     height: 44,
@@ -137,27 +113,19 @@ const volStyles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    height: 2,
-    backgroundColor: '#2A2A2A',
-    borderRadius: 1,
+    height: StyleSheet.hairlineWidth,
   },
   trackFill: {
     position: 'absolute',
     left: 0,
-    height: 2,
-    borderRadius: 1,
+    height: StyleSheet.hairlineWidth,
   },
   thumb: {
     position: 'absolute',
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    top: 14,
-    backgroundColor: '#FFFFFF',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 6,
-    elevation: 4,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    top: 16,
   },
 });
 
@@ -166,6 +134,10 @@ export default function MixerScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const scheme = useColorScheme() ?? 'light';
+  const isDark = scheme === 'dark';
+  const C = isDark ? DARK : LIGHT;
+
   const {
     activeSoundscapeId,
     isPlaying,
@@ -216,8 +188,8 @@ export default function MixerScreen() {
 
   if (!soundscape) {
     return (
-      <View style={styles.container}>
-        <Text style={{ color: C.textPrimary, padding: 24 }}>Sound not found.</Text>
+      <View style={[styles.container, { backgroundColor: C.bg }]}>
+        <Text style={{ color: C.text, padding: 24 }}>Sound not found.</Text>
       </View>
     );
   }
@@ -230,20 +202,19 @@ export default function MixerScreen() {
   };
 
   const currentLevels = isActive ? levels : soundscape.presets[0].levels;
-  const accent = soundscape.color;
   const playing = isActive && isPlaying;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: C.bg }]}>
       {/* Top navigation bar */}
-      <View style={[styles.topBar, { paddingTop: insets.top + 10 }]}>
+      <View style={[styles.topBar, { paddingTop: insets.top + 10, borderBottomColor: C.border }]}>
         <Pressable
           onPress={() => router.back()}
           accessibilityRole="button"
           accessibilityLabel="Go back"
-          style={({ pressed }) => [styles.iconBtn, pressed && { opacity: 0.5 }]}
+          style={({ pressed }) => [styles.iconBtn, pressed && { opacity: 0.4 }]}
         >
-          <IconSymbol name="chevron.left" size={22} color={C.iconInactive} />
+          <IconSymbol name="chevron.left" size={20} color={C.muted} />
         </Pressable>
 
         <View style={styles.headerActions}>
@@ -251,11 +222,11 @@ export default function MixerScreen() {
             onPress={() => setTimerSheetVisible(true)}
             accessibilityRole="button"
             accessibilityLabel={timerRemaining ? `Sleep timer: ${timerRemaining} remaining` : 'Set sleep timer'}
-            style={({ pressed }) => [styles.iconBtn, pressed && { opacity: 0.5 }]}
+            style={({ pressed }) => [styles.iconBtn, pressed && { opacity: 0.4 }]}
           >
             {timerRemaining
-              ? <Text style={[styles.timerText, { color: accent }]}>{timerRemaining}</Text>
-              : <IconSymbol name="timer" size={20} color={C.iconInactive} />
+              ? <Text style={[styles.timerText, { color: C.text }]}>{timerRemaining}</Text>
+              : <IconSymbol name="timer" size={20} color={C.muted} />
             }
           </Pressable>
 
@@ -267,9 +238,9 @@ export default function MixerScreen() {
             accessibilityRole="togglebutton"
             accessibilityLabel={isFavorite ? 'Remove from saved' : 'Save sound'}
             accessibilityState={{ checked: isFavorite }}
-            style={({ pressed }) => [styles.iconBtn, pressed && { opacity: 0.5 }]}
+            style={({ pressed }) => [styles.iconBtn, pressed && { opacity: 0.4 }]}
           >
-            <Text style={[styles.heartBtn, { color: isFavorite ? accent : C.iconInactive }]}>
+            <Text style={[styles.heartBtn, { color: isFavorite ? C.text : C.muted }]}>
               {isFavorite ? '♥' : '♡'}
             </Text>
           </Pressable>
@@ -282,19 +253,19 @@ export default function MixerScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Hero block */}
-        <View style={styles.heroBlock}>
-          <Text style={styles.categoryLabel}>{soundscape.category}</Text>
+        <View style={[styles.heroBlock, { borderBottomColor: C.border }]}>
+          <Text style={[styles.categoryLabel, { color: C.muted }]}>
+            {soundscape.category.toUpperCase()}
+          </Text>
           <Text
-            style={[styles.soundName, { color: accent }]}
+            style={[styles.soundName, { color: C.text }]}
             accessibilityRole="header"
           >
             {soundscape.name}
           </Text>
-          <Text style={styles.soundDesc}>{soundscape.description}</Text>
-        </View>
+          <Text style={[styles.soundDesc, { color: C.muted }]}>{soundscape.description}</Text>
 
-        {/* Play / Pause */}
-        <View style={styles.playRow}>
+          {/* Play / Pause inline in hero */}
           <Pressable
             onPress={handlePlayPause}
             accessibilityRole="button"
@@ -302,32 +273,27 @@ export default function MixerScreen() {
             accessibilityState={{ selected: playing }}
             style={({ pressed }) => [
               styles.playBtn,
-              pressed && { opacity: 0.7, transform: [{ scale: 0.96 }] },
+              { borderColor: C.border },
+              playing && { backgroundColor: C.text, borderColor: C.text },
+              pressed && { opacity: 0.6 },
             ]}
           >
-            <View style={[
-              styles.playCircle,
-              { borderColor: `${accent}55` },
-              playing && { backgroundColor: accent, borderColor: accent },
-            ]}>
-              <IconSymbol
-                name={playing ? 'pause.fill' : 'play.fill'}
-                size={24}
-                color={playing ? '#000000' : accent}
-              />
-            </View>
+            <IconSymbol
+              name={playing ? 'pause.fill' : 'play.fill'}
+              size={16}
+              color={playing ? C.bg : C.text}
+            />
+            <Text style={[styles.playLabel, { color: playing ? C.bg : C.text }]}>
+              {playing ? 'PAUSE' : 'PLAY'}
+            </Text>
           </Pressable>
-          <Text style={styles.playLabel}>
-            {playing ? 'playing' : 'tap to play'}
-          </Text>
         </View>
 
-        {/* Divider */}
-        <View style={styles.divider} />
-
         {/* EQ Sliders */}
-        <Text style={styles.sectionLabel}>Mix</Text>
-        <Text style={styles.sectionSub}>Drag sliders to shape the sound</Text>
+        <View style={[styles.sectionHeader, { borderBottomColor: C.border }]}>
+          <Text style={[styles.sectionLabel, { color: C.muted }]}>MIX</Text>
+          <Text style={[styles.sectionSub, { color: C.muted }]}>Shape the sound</Text>
+        </View>
 
         <ScrollView
           horizontal
@@ -342,17 +308,17 @@ export default function MixerScreen() {
               key={label}
               label={label}
               value={currentLevels[i] ?? 70}
-              accentColor={accent}
+              accentColor={C.text}
               onChange={(val) => setLevel(i, val)}
+              isDark={isDark}
             />
           ))}
         </ScrollView>
 
-        {/* Divider */}
-        <View style={styles.divider} />
-
         {/* Presets */}
-        <Text style={styles.sectionLabel}>Presets</Text>
+        <View style={[styles.sectionHeader, { borderBottomColor: C.border }]}>
+          <Text style={[styles.sectionLabel, { color: C.muted }]}>PRESETS</Text>
+        </View>
         <View style={styles.presetsRow}>
           {soundscape.presets.map((preset) => (
             <Pressable
@@ -365,23 +331,22 @@ export default function MixerScreen() {
               accessibilityLabel={`Apply ${preset.name} preset`}
               style={({ pressed }) => [
                 styles.presetChip,
-                pressed && { opacity: 0.6 },
+                { borderColor: C.border },
+                pressed && { opacity: 0.5 },
               ]}
             >
-              <Text style={[styles.presetText, { color: accent }]}>{preset.name}</Text>
+              <Text style={[styles.presetText, { color: C.text }]}>{preset.name}</Text>
             </Pressable>
           ))}
         </View>
 
-        {/* Divider */}
-        <View style={styles.divider} />
-
         {/* Meditation Bell */}
-        <View style={styles.bellHeader}>
-          <View style={styles.bellTitleRow}>
-            <Text style={styles.sectionLabel}>Meditation Bell</Text>
-            <Text style={styles.bellDesc}>Chimes at set intervals</Text>
-          </View>
+        <View style={[styles.sectionHeader, { borderBottomColor: C.border }]}>
+          <Text style={[styles.sectionLabel, { color: C.muted }]}>BELL</Text>
+          <Text style={[styles.sectionSub, { color: C.muted }]}>Chimes at set intervals</Text>
+        </View>
+
+        <View style={styles.bellRow}>
           <Pressable
             onPress={() => {
               if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -390,57 +355,59 @@ export default function MixerScreen() {
             accessibilityRole="switch"
             accessibilityLabel={bellEnabled ? 'Bell enabled, tap to disable' : 'Bell disabled, tap to enable'}
             accessibilityState={{ checked: bellEnabled }}
-            style={({ pressed }) => [styles.bellToggle, pressed && { opacity: 0.7 }]}
+            style={({ pressed }) => [
+              styles.bellToggleBtn,
+              { borderColor: C.border },
+              bellEnabled && { backgroundColor: C.text, borderColor: C.text },
+              pressed && { opacity: 0.6 },
+            ]}
           >
-            <View style={[
-              styles.bellToggleTrack,
-              { backgroundColor: bellEnabled ? accent : '#2A2A2A' },
-            ]}>
-              <View style={[
-                styles.bellToggleThumb,
-                { transform: [{ translateX: bellEnabled ? 20 : 2 }] },
-              ]} />
-            </View>
+            <Text style={[styles.bellToggleLabel, { color: bellEnabled ? C.bg : C.text }]}>
+              {bellEnabled ? 'ON' : 'OFF'}
+            </Text>
           </Pressable>
+
+          {bellEnabled && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.bellIntervalScroll}>
+              <View style={styles.bellIntervals}>
+                {[1, 5, 10, 15, 20, 30].map((mins) => (
+                  <Pressable
+                    key={mins}
+                    onPress={() => {
+                      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setBell(true, mins);
+                    }}
+                    accessibilityRole="radio"
+                    accessibilityLabel={`Bell every ${mins} minutes`}
+                    accessibilityState={{ checked: bellIntervalMinutes === mins }}
+                    style={({ pressed }) => [
+                      styles.bellChip,
+                      { borderColor: C.border },
+                      bellIntervalMinutes === mins && { backgroundColor: C.text, borderColor: C.text },
+                      pressed && { opacity: 0.6 },
+                    ]}
+                  >
+                    <Text style={[
+                      styles.bellChipText,
+                      { color: bellIntervalMinutes === mins ? C.bg : C.text },
+                    ]}>
+                      {mins}m
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </ScrollView>
+          )}
         </View>
 
-        {bellEnabled && (
-          <View style={styles.bellIntervals}>
-            {[1, 5, 10, 15, 20, 30].map((mins) => (
-              <Pressable
-                key={mins}
-                onPress={() => {
-                  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setBell(true, mins);
-                }}
-                accessibilityRole="radio"
-                accessibilityLabel={`Bell every ${mins} minutes`}
-                accessibilityState={{ checked: bellIntervalMinutes === mins }}
-                style={({ pressed }) => [
-                  styles.bellChip,
-                  bellIntervalMinutes === mins && { backgroundColor: accent, borderColor: accent },
-                  pressed && { opacity: 0.7 },
-                ]}
-              >
-                <Text style={[
-                  styles.bellChipText,
-                  { color: bellIntervalMinutes === mins ? '#000000' : C.textSecondary },
-                ]}>
-                  {mins}m
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        )}
-
-        {/* Divider */}
-        <View style={styles.divider} />
-
         {/* Master Volume */}
+        <View style={[styles.sectionHeader, { borderBottomColor: C.border }]}>
+          <Text style={[styles.sectionLabel, { color: C.muted }]}>VOLUME</Text>
+        </View>
         <VolumeSlider
           value={isActive ? masterVolume : 80}
-          accentColor={accent}
           onChange={setMasterVolume}
+          isDark={isDark}
         />
       </ScrollView>
 
@@ -448,26 +415,40 @@ export default function MixerScreen() {
       <TimerSheet
         visible={timerSheetVisible}
         onClose={() => setTimerSheetVisible(false)}
-        accentColor={accent}
+        accentColor={isDark ? '#FFFFFF' : '#000000'}
       />
     </View>
   );
 }
 
+// ─── Color tokens ──────────────────────────────────────────────────────────
+const LIGHT = {
+  bg:     '#FFFFFF',
+  text:   '#000000',
+  muted:  '#666666',
+  border: '#E0E0E0',
+};
+const DARK = {
+  bg:     '#000000',
+  text:   '#FFFFFF',
+  muted:  '#888888',
+  border: '#222222',
+};
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: C.bg,
   },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingBottom: 8,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   iconBtn: {
-    width: 44,                  // 44pt minimum touch target ✓
+    width: 44,
     height: 44,
     alignItems: 'center',
     justifyContent: 'center',
@@ -478,179 +459,154 @@ const styles = StyleSheet.create({
   },
   timerText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '400',
+    letterSpacing: 1,
     minWidth: 36,
     textAlign: 'center',
   },
   heartBtn: {
-    fontSize: 22,
-    lineHeight: 26,
+    fontSize: 20,
+    lineHeight: 24,
   },
   scroll: {
     flex: 1,
   },
   scrollContent: {
     paddingHorizontal: 24,
-    paddingTop: 12,
+    paddingTop: 0,
   },
   heroBlock: {
-    marginBottom: 32,
-    gap: 6,
+    paddingVertical: 32,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: 8,
+    marginBottom: 0,
   },
   categoryLabel: {
-    fontSize: 12,
-    color: C.textTertiary,      // 5.9:1 ✓
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-    marginBottom: 4,
+    fontSize: 10,
+    fontWeight: '400',
+    letterSpacing: 3,
     lineHeight: 16,
   },
   soundName: {
-    fontSize: 52,
-    fontWeight: '200',
+    fontFamily: 'PlayfairDisplay-Regular',
+    fontSize: 48,
+    fontWeight: '400',
     letterSpacing: -1,
-    lineHeight: 56,
-    // accent color set per-soundscape; all ≥ 3:1 on black for large text ✓
+    lineHeight: 54,
   },
   soundDesc: {
-    fontSize: 15,
-    color: C.textSecondary,     // 9.7:1 ✓
-    lineHeight: 24,
-    letterSpacing: 0.2,
+    fontSize: 14,
+    fontWeight: '400',
+    lineHeight: 22,
+    letterSpacing: 0.1,
     marginTop: 4,
   },
-  playRow: {
+  playBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 18,
-    marginBottom: 36,
-  },
-  playBtn: {},
-  playCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'transparent',
+    gap: 8,
+    alignSelf: 'flex-start',
+    marginTop: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    minHeight: 44,
   },
   playLabel: {
-    fontSize: 14,
-    color: C.textSecondary,     // 9.7:1 ✓
-    letterSpacing: 1,
-    lineHeight: 20,
+    fontSize: 10,
+    fontWeight: '400',
+    letterSpacing: 3,
+    lineHeight: 16,
   },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: C.separator,
-    marginVertical: 28,
+  sectionHeader: {
+    paddingVertical: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    marginBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
   },
   sectionLabel: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: C.textTertiary,      // 5.9:1 ✓
-    textTransform: 'uppercase',
-    letterSpacing: 2,
-    marginBottom: 4,
+    fontSize: 10,
+    fontWeight: '400',
+    letterSpacing: 3,
     lineHeight: 16,
   },
   sectionSub: {
-    fontSize: 14,
-    color: C.textSecondary,     // 9.7:1 ✓
-    letterSpacing: 0.2,
-    marginBottom: 24,
-    lineHeight: 20,
+    fontSize: 11,
+    fontWeight: '400',
+    letterSpacing: 0.5,
+    lineHeight: 16,
   },
   slidersScroll: {
     marginHorizontal: -24,
+    marginBottom: 8,
   },
   slidersRow: {
     flexDirection: 'row',
-    gap: 18,
+    gap: 0,
     paddingHorizontal: 24,
   },
   presetsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
-    marginTop: 14,
+    gap: 8,
+    marginBottom: 8,
   },
   presetChip: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,        // increased for 44pt touch target ✓
-    borderRadius: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#2A2A2A',     // slightly brighter border ✓
     minHeight: 44,
     justifyContent: 'center',
   },
   presetText: {
+    fontFamily: 'PlayfairDisplay-Italic',
     fontSize: 15,
     fontWeight: '400',
-    letterSpacing: 0.3,
-    lineHeight: 20,
-    // accent color set per-soundscape; all ≥ 3:1 on black ✓
-  },
-  // Bell styles
-  bellHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  bellTitleRow: {
-    gap: 4,
-    flex: 1,
-  },
-  bellDesc: {
-    fontSize: 14,
-    color: C.textSecondary,     // 9.7:1 ✓
     letterSpacing: 0.2,
     lineHeight: 20,
   },
-  bellToggle: {
-    width: 44,
-    height: 44,
+  bellRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 12,
+    marginBottom: 8,
   },
-  bellToggleTrack: {
-    width: 44,
-    height: 26,
-    borderRadius: 13,
+  bellToggleBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    minHeight: 44,
     justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: 60,
   },
-  bellToggleThumb: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.3,
-    shadowRadius: 2,
-    elevation: 2,
+  bellToggleLabel: {
+    fontSize: 10,
+    fontWeight: '400',
+    letterSpacing: 3,
+    lineHeight: 16,
+  },
+  bellIntervalScroll: {
+    flex: 1,
   },
   bellIntervals: {
     flexDirection: 'row',
-    gap: 10,
-    flexWrap: 'wrap',
-    marginBottom: 8,
+    gap: 8,
   },
   bellChip: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#2A2A2A',
     minHeight: 44,
     justifyContent: 'center',
+    alignItems: 'center',
   },
   bellChipText: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '400',
-    letterSpacing: 0.3,
-    lineHeight: 20,
+    letterSpacing: 1,
+    lineHeight: 18,
   },
 });

@@ -1,47 +1,43 @@
 import { Tabs } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Platform, View } from "react-native";
+import { Platform, StyleSheet, Text, useColorScheme, View } from "react-native";
 import { HapticTab } from "@/components/haptic-tab";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { MiniPlayer } from "@/components/mini-player";
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
+  const scheme = useColorScheme() ?? 'light';
+  const isDark = scheme === 'dark';
+
+  const bg = isDark ? '#000000' : '#FFFFFF';
+  const borderColor = isDark ? '#222222' : '#E0E0E0';
+  const activeColor = isDark ? '#FFFFFF' : '#000000';
+  const inactiveColor = isDark ? '#666666' : '#999999';
+
   const bottomPadding = Platform.OS === "web" ? 12 : Math.max(insets.bottom, 8);
   const tabBarHeight = 52 + bottomPadding;
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#F5F5F0',   // 19.5:1 on black ✓
-        tabBarInactiveTintColor: '#666666',   // 4.5:1 on black ✓
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarShowLabel: false,
-        tabBarStyle: {
-          paddingTop: 10,
-          paddingBottom: bottomPadding,
-          height: tabBarHeight,
-          backgroundColor: '#000000',
-          borderTopColor: '#111111',
-          borderTopWidth: StyleSheet.hairlineWidth,
-          elevation: 0,
-          shadowOpacity: 0,
-        },
       }}
       tabBar={(props) => (
-        <View style={{ backgroundColor: '#000000' }}>
-          <MiniPlayer />
+        <View style={{ backgroundColor: bg }}>
+          <MiniPlayer isDark={isDark} />
           <View
-            style={{
-              flexDirection: 'row',
-              paddingTop: 10,
-              paddingBottom: bottomPadding,
-              height: tabBarHeight,
-              backgroundColor: '#000000',
-              borderTopWidth: 0.5,
-              borderTopColor: '#111111',
-            }}
+            style={[
+              styles.tabBar,
+              {
+                paddingBottom: bottomPadding,
+                height: tabBarHeight,
+                backgroundColor: bg,
+                borderTopColor: borderColor,
+              },
+            ]}
           >
             {props.state.routes.map((route, index) => {
               const { options } = props.descriptors[route.key];
@@ -60,7 +56,7 @@ export default function TabLayout() {
               return (
                 <View
                   key={route.key}
-                  style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
+                  style={styles.tabItem}
                   accessibilityRole="tab"
                   accessibilityLabel={tabLabel}
                   accessibilityState={{ selected: isFocused }}
@@ -69,9 +65,20 @@ export default function TabLayout() {
                     onPress={onPress}
                     accessibilityRole="button"
                     accessibilityLabel={tabLabel}
-                    style={{ alignItems: 'center', justifyContent: 'center', width: 44, height: 44 }}
+                    style={styles.tabBtn}
                   >
-                    {options.tabBarIcon?.({ focused: isFocused, color: isFocused ? '#F5F5F0' : '#666666', size: 22 })}
+                    {options.tabBarIcon?.({
+                      focused: isFocused,
+                      color: isFocused ? activeColor : inactiveColor,
+                      size: 20,
+                    })}
+                    {/* Co-Star uses tiny text labels */}
+                    <Text style={[
+                      styles.tabLabel,
+                      { color: isFocused ? activeColor : inactiveColor },
+                    ]}>
+                      {tabLabel.toUpperCase()}
+                    </Text>
                   </HapticTab>
                 </View>
               );
@@ -102,5 +109,28 @@ export default function TabLayout() {
   );
 }
 
-// Need StyleSheet for hairlineWidth
-import { StyleSheet } from 'react-native';
+const styles = StyleSheet.create({
+  tabBar: {
+    flexDirection: 'row',
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  tabItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 80,
+    height: 44,
+    gap: 2,
+  },
+  tabLabel: {
+    fontSize: 8,
+    fontWeight: '400',
+    letterSpacing: 2,
+    lineHeight: 10,
+  },
+});
