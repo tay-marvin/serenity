@@ -167,3 +167,8 @@
 - [x] Audio engine: play both sounds concurrently with independent volumes
 - [x] Mixer screen: show both active layers with individual volume sliders
 - [x] Clearing a layer stops that sound and removes its badge
+
+## Bug Fixes (Round 6)
+
+- [x] Fix duplicate volume slider in mixer screen (Layer A slider shown twice when no Layer B)
+- [x] Replace long-press-only Layer B with an in-mixer sound picker (more discoverable)

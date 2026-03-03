@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -20,6 +20,7 @@ import { SOUNDSCAPES, EQ_BAND_LABELS } from '@/lib/sounds';
 import * as Haptics from 'expo-haptics';
 
 // ─── Horizontal Volume Slider ──────────────────────────────────────────────
+// Renders a track + thumb with its own label row. No outer section header needed.
 function VolumeSlider({
   label,
   value,
@@ -77,11 +78,13 @@ function VolumeSlider({
     : 0;
 
   return (
-    <View style={{ marginBottom: 8 }}>
-      <View style={[volStyles.header, { borderBottomColor: C.border }]}>
+    <View style={volStyles.wrapper}>
+      {/* Label row — this is the only header for this slider */}
+      <View style={[volStyles.labelRow, { borderBottomColor: C.border }]}>
         <Text style={[volStyles.label, { color: C.muted }]}>{label}</Text>
         <Text style={[volStyles.valueText, { color: C.text }]}>{Math.round(value)}</Text>
       </View>
+      {/* Track */}
       <View
         style={volStyles.trackWrap}
         accessibilityRole="adjustable"
@@ -104,13 +107,16 @@ function VolumeSlider({
 }
 
 const volStyles = StyleSheet.create({
-  header: {
+  wrapper: {
+    marginBottom: 4,
+  },
+  labelRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 16,
+    paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   label: {
     fontSize: 10,
@@ -181,15 +187,15 @@ export default function MixerScreen() {
   const [timerSheetVisible, setTimerSheetVisible] = useState(false);
   const [timerRemaining, setTimerRemaining] = useState<string | null>(null);
   const [scrollEnabled, setScrollEnabled] = useState(true);
+  // Controls whether the Layer B picker list is expanded
+  const [layerPickerOpen, setLayerPickerOpen] = useState(false);
 
   const soundscape = SOUNDSCAPES.find(s => s.id === id);
   const isLayerA = layerAId === id;
   const isLayerB = layerBId === id;
   const isActive = isLayerA || isLayerB;
-  const isPlaying = (isLayerA && layerAPlaying) || (isLayerB && layerBPlaying);
   const isFavorite = favorites.includes(id ?? '');
 
-  // The "other" layer's soundscape (for the layer B info strip)
   const layerBSoundscape = layerBId ? SOUNDSCAPES.find(s => s.id === layerBId) : null;
 
   useKeepAwake();
@@ -231,6 +237,9 @@ export default function MixerScreen() {
 
   const currentLevels = isLayerA ? levels : soundscape.presets[0].levels;
   const playing = layerAPlaying || layerBPlaying;
+
+  // Sounds available to pick as Layer B (exclude the current Layer A sound)
+  const layerBOptions = SOUNDSCAPES.filter(s => s.id !== id);
 
   return (
     <View style={[styles.container, { backgroundColor: C.bg }]}>
@@ -286,15 +295,11 @@ export default function MixerScreen() {
           <Text style={[styles.categoryLabel, { color: C.muted }]}>
             {soundscape.category.toUpperCase()}
           </Text>
-          <Text
-            style={[styles.soundName, { color: C.text }]}
-            accessibilityRole="header"
-          >
+          <Text style={[styles.soundName, { color: C.text }]} accessibilityRole="header">
             {soundscape.name}
           </Text>
           <Text style={[styles.soundDesc, { color: C.muted }]}>{soundscape.description}</Text>
 
-          {/* Play / Pause */}
           <Pressable
             onPress={handlePlayPause}
             accessibilityRole="button"
@@ -428,17 +433,10 @@ export default function MixerScreen() {
           )}
         </View>
 
-        {/* ─── Volume Section ─────────────────────────────────────────── */}
-        <View style={[styles.sectionHeader, { borderBottomColor: C.border }]}>
-          <Text style={[styles.sectionLabel, { color: C.muted }]}>VOLUME</Text>
-          {layerBSoundscape && (
-            <Text style={[styles.sectionSub, { color: C.muted }]}>Two layers active</Text>
-          )}
-        </View>
-
-        {/* Layer A volume — always shown */}
+        {/* ─── Volume ─────────────────────────────────────────────────── */}
+        {/* Layer A volume slider — label comes from inside VolumeSlider, no extra header */}
         <VolumeSlider
-          label={layerBSoundscape ? `A · ${soundscape.name.toUpperCase()}` : 'VOLUME'}
+          label="VOLUME"
           value={isLayerA ? layerAVolume : 80}
           onChange={(v) => setLayerVolume('A', v)}
           isDark={isDark}
@@ -446,43 +444,92 @@ export default function MixerScreen() {
           onDragEnd={() => setScrollEnabled(true)}
         />
 
-        {/* Layer B volume — only shown when a second layer is active */}
+        {/* Layer B volume slider — only shown when a second layer is active */}
         {layerBSoundscape && (
-          <View style={{ marginTop: 8 }}>
+          <View style={styles.layerBBlock}>
             <VolumeSlider
-              label={`B · ${layerBSoundscape.name.toUpperCase()}`}
+              label={`LAYER B · ${layerBSoundscape.name.toUpperCase()}`}
               value={layerBVolume}
               onChange={(v) => setLayerVolume('B', v)}
               isDark={isDark}
               onDragStart={() => setScrollEnabled(false)}
               onDragEnd={() => setScrollEnabled(true)}
             />
-            {/* Clear Layer B button */}
             <Pressable
               onPress={() => {
                 if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 clearLayer('B');
+                setLayerPickerOpen(false);
               }}
               accessibilityRole="button"
               accessibilityLabel={`Remove ${layerBSoundscape.name} from Layer B`}
               style={({ pressed }) => [
-                styles.clearLayerBtn,
+                styles.removeLayerBtn,
                 { borderColor: C.border },
                 pressed && { opacity: 0.5 },
               ]}
             >
-              <Text style={[styles.clearLayerText, { color: C.muted }]}>
-                REMOVE LAYER B
-              </Text>
+              <Text style={[styles.removeLayerText, { color: C.muted }]}>REMOVE LAYER B</Text>
             </Pressable>
           </View>
         )}
 
-        {/* Add Layer B hint — shown when no Layer B is set */}
+        {/* ─── Layer B Picker ──────────────────────────────────────────── */}
         {!layerBSoundscape && (
-          <Text style={[styles.layerHint, { color: C.muted }]}>
-            Long press any sound on the home screen to add a second layer.
-          </Text>
+          <>
+            <View style={[styles.sectionHeader, { borderBottomColor: C.border, marginTop: 8 }]}>
+              <Text style={[styles.sectionLabel, { color: C.muted }]}>LAYER B</Text>
+              <Text style={[styles.sectionSub, { color: C.muted }]}>Add a second sound</Text>
+            </View>
+
+            {/* Toggle button to show/hide the picker list */}
+            <Pressable
+              onPress={() => {
+                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setLayerPickerOpen(prev => !prev);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={layerPickerOpen ? 'Close sound picker' : 'Pick a second sound to layer'}
+              style={({ pressed }) => [
+                styles.addLayerBtn,
+                { borderColor: C.border },
+                layerPickerOpen && { backgroundColor: C.text, borderColor: C.text },
+                pressed && { opacity: 0.6 },
+              ]}
+            >
+              <Text style={[styles.addLayerText, { color: layerPickerOpen ? C.bg : C.text }]}>
+                {layerPickerOpen ? 'CANCEL' : '+ ADD LAYER'}
+              </Text>
+            </Pressable>
+
+            {/* Sound list */}
+            {layerPickerOpen && (
+              <View style={[styles.pickerList, { borderColor: C.border }]}>
+                {layerBOptions.map((s) => (
+                  <Pressable
+                    key={s.id}
+                    onPress={() => {
+                      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                      playLayer('B', s.id);
+                      setLayerPickerOpen(false);
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Add ${s.name} as Layer B`}
+                    style={({ pressed }) => [
+                      styles.pickerRow,
+                      { borderBottomColor: C.border },
+                      pressed && { opacity: 0.5 },
+                    ]}
+                  >
+                    <Text style={[styles.pickerName, { color: C.text }]}>{s.name}</Text>
+                    <Text style={[styles.pickerCategory, { color: C.muted }]}>
+                      {s.category.toUpperCase()}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+          </>
         )}
 
       </ScrollView>
@@ -555,7 +602,6 @@ const styles = StyleSheet.create({
     paddingVertical: 32,
     borderBottomWidth: StyleSheet.hairlineWidth,
     gap: 8,
-    marginBottom: 0,
   },
   categoryLabel: {
     fontSize: 10,
@@ -620,7 +666,6 @@ const styles = StyleSheet.create({
   },
   slidersRow: {
     flexDirection: 'row',
-    gap: 0,
     paddingHorizontal: 24,
   },
   presetsRow: {
@@ -685,28 +730,66 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     lineHeight: 18,
   },
-  clearLayerBtn: {
+  // Layer B
+  layerBBlock: {
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  removeLayerBtn: {
     alignSelf: 'flex-start',
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderWidth: StyleSheet.hairlineWidth,
     minHeight: 44,
     justifyContent: 'center',
-    marginTop: 8,
-    marginBottom: 8,
+    marginTop: 4,
   },
-  clearLayerText: {
+  removeLayerText: {
     fontSize: 10,
     fontWeight: '400',
     letterSpacing: 3,
     lineHeight: 16,
   },
-  layerHint: {
-    fontSize: 12,
-    fontWeight: '400',
-    letterSpacing: 0.2,
-    lineHeight: 18,
-    marginTop: 4,
+  addLayerBtn: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    minHeight: 44,
+    justifyContent: 'center',
     marginBottom: 16,
+  },
+  addLayerText: {
+    fontSize: 10,
+    fontWeight: '400',
+    letterSpacing: 3,
+    lineHeight: 16,
+  },
+  pickerList: {
+    borderWidth: StyleSheet.hairlineWidth,
+    marginBottom: 16,
+  },
+  pickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    minHeight: 52,
+  },
+  pickerName: {
+    fontFamily: 'PlayfairDisplay-Regular',
+    fontSize: 18,
+    fontWeight: '400',
+    letterSpacing: -0.2,
+    lineHeight: 24,
+    flex: 1,
+  },
+  pickerCategory: {
+    fontSize: 9,
+    fontWeight: '400',
+    letterSpacing: 2,
+    lineHeight: 14,
   },
 });
