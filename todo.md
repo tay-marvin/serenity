@@ -118,3 +118,7 @@
 - [x] Implement light mode: pure white bg, black serif text, hairline rules
 - [x] Implement dark mode: pure black bg, white serif text, same editorial feel
 - [x] Auto-switch based on device system setting
+
+## Bug Fixes (Round 2)
+
+- [x] Remove duplicate Volume section header on mixer screen

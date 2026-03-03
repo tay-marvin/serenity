@@ -401,9 +401,6 @@ export default function MixerScreen() {
         </View>
 
         {/* Master Volume */}
-        <View style={[styles.sectionHeader, { borderBottomColor: C.border }]}>
-          <Text style={[styles.sectionLabel, { color: C.muted }]}>VOLUME</Text>
-        </View>
         <VolumeSlider
           value={isActive ? masterVolume : 80}
           onChange={setMasterVolume}
