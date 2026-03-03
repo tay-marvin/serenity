@@ -154,3 +154,7 @@
 ## Bug Fixes (Round 4)
 
 - [x] Fix volume slider thumb misalignment and ScrollView gesture conflict — onLayout track measurement + scrollEnabled lock during drag
+
+## Bug Fixes (Round 5)
+
+- [x] Fix volume slider: switched trackWidth to useState (triggers re-render on layout), use locationX directly in gesture (no drift, works from any touch point), horizontal-only gesture claim to avoid ScrollView conflict

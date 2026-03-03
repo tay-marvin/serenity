@@ -34,29 +34,34 @@ function VolumeSlider({
   onDragEnd?: () => void;
 }) {
   const C = isDark ? DARK : LIGHT;
+  // useState so onLayout triggers a re-render and thumbLeft updates immediately
+  const [trackWidth, setTrackWidth] = useState(0);
   const trackWidthRef = useRef(0);
-  const valueRef = useRef(value);
-  const startValRef = useRef(value);
   const lastHapticRef = useRef(value);
 
-  // Keep live ref in sync so PanResponder closure always reads current value
-  useEffect(() => { valueRef.current = value; }, [value]);
+  const clamp = (v: number) => Math.min(100, Math.max(0, Math.round(v)));
 
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
+      // Only claim horizontal gestures to avoid conflicting with vertical scroll
+      onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dx) > Math.abs(gs.dy),
       onShouldBlockNativeResponder: () => true,
-      onPanResponderGrant: () => {
-        startValRef.current = valueRef.current;
-        lastHapticRef.current = valueRef.current;
+      onPanResponderGrant: (e) => {
+        // Jump to touch position immediately — works from any point on the track
+        const tw = trackWidthRef.current;
+        if (tw > 0) {
+          const next = clamp((e.nativeEvent.locationX / tw) * 100);
+          lastHapticRef.current = next;
+          onChange(next);
+        }
         onDragStart?.();
       },
-      onPanResponderMove: (_, gs) => {
+      onPanResponderMove: (e) => {
         const tw = trackWidthRef.current;
         if (tw <= 0) return;
-        const delta = (gs.dx / tw) * 100;
-        const next = Math.min(100, Math.max(0, Math.round(startValRef.current + delta)));
+        // Use locationX directly — no drift, works from any start position
+        const next = clamp((e.nativeEvent.locationX / tw) * 100);
         if (Math.abs(next - lastHapticRef.current) >= 5 && Platform.OS !== 'web') {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           lastHapticRef.current = next;
@@ -69,8 +74,8 @@ function VolumeSlider({
   ).current;
 
   const THUMB = 14;
-  const thumbLeft = trackWidthRef.current > 0
-    ? Math.max(0, Math.min(trackWidthRef.current - THUMB, (value / 100) * trackWidthRef.current - THUMB / 2))
+  const thumbLeft = trackWidth > 0
+    ? Math.max(0, Math.min(trackWidth - THUMB, (value / 100) * trackWidth - THUMB / 2))
     : 0;
 
   return (
@@ -85,7 +90,11 @@ function VolumeSlider({
         accessibilityLabel={`Master volume, ${Math.round(value)} percent`}
         accessibilityValue={{ min: 0, max: 100, now: Math.round(value) }}
         accessibilityHint="Drag left or right to adjust"
-        onLayout={(e) => { trackWidthRef.current = e.nativeEvent.layout.width; }}
+        onLayout={(e) => {
+          const w = e.nativeEvent.layout.width;
+          trackWidthRef.current = w; // keep ref for PanResponder closure
+          setTrackWidth(w);          // trigger re-render so thumbLeft updates
+        }}
         {...panResponder.panHandlers}
       >
         <View style={[volStyles.trackBg, { backgroundColor: C.border }]} />
