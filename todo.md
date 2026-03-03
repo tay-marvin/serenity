@@ -133,3 +133,7 @@
 ## Theme Toggle Icon Update
 
 - [x] Replace ●/○ text with outlined sun (light mode) and moon (dark mode) SF Symbol icons
+
+## Tab Bar Dark Mode Fix
+
+- [x] Tab bar background goes pure black in dark mode, white in light mode (follows theme context)

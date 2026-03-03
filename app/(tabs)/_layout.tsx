@@ -1,14 +1,15 @@
 import { Tabs } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Platform, StyleSheet, Text, useColorScheme, View } from "react-native";
+import { Platform, StyleSheet, Text, View } from "react-native";
 import { HapticTab } from "@/components/haptic-tab";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { MiniPlayer } from "@/components/mini-player";
+import { useThemeContext } from "@/lib/theme-provider";
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
-  const scheme = useColorScheme() ?? 'light';
-  const isDark = scheme === 'dark';
+  const { colorScheme } = useThemeContext();
+  const isDark = colorScheme === 'dark';
 
   const bg = isDark ? '#000000' : '#FFFFFF';
   const borderColor = isDark ? '#222222' : '#E0E0E0';
