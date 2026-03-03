@@ -33,7 +33,9 @@ function VolumeSlider({
   isDark: boolean;
 }) {
   const C = isDark ? DARK : LIGHT;
-  const startXRef = useRef(0);
+  // Keep a live ref to value so the PanResponder closure always reads current value
+  const valueRef = useRef(value);
+  useEffect(() => { valueRef.current = value; }, [value]);
   const startValRef = useRef(value);
   const lastHapticRef = useRef(value);
   const trackWidth = width - 48;
@@ -42,13 +44,14 @@ function VolumeSlider({
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: (e) => {
-        startXRef.current = e.nativeEvent.pageX;
-        startValRef.current = value;
+      // Capture the value at the moment the finger touches down
+      onPanResponderGrant: () => {
+        startValRef.current = valueRef.current;
+        lastHapticRef.current = valueRef.current;
       },
-      onPanResponderMove: (e) => {
-        const dx = e.nativeEvent.pageX - startXRef.current;
-        const delta = (dx / trackWidth) * 100;
+      // Use gestureState.dx (cumulative delta from grant point) — reliable and no stale pageX
+      onPanResponderMove: (_, gs) => {
+        const delta = (gs.dx / trackWidth) * 100;
         const next = Math.min(100, Math.max(0, Math.round(startValRef.current + delta)));
         if (Math.abs(next - lastHapticRef.current) >= 5 && Platform.OS !== 'web') {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -59,7 +62,7 @@ function VolumeSlider({
     })
   ).current;
 
-  const thumbLeft = (value / 100) * trackWidth;
+  const thumbLeft = Math.max(0, Math.min(trackWidth - 12, (value / 100) * trackWidth - 6));
 
   return (
     <View style={{ marginBottom: 8 }}>
@@ -77,7 +80,7 @@ function VolumeSlider({
       >
         <View style={[volStyles.trackBg, { backgroundColor: C.border }]} />
         <View style={[volStyles.trackFill, { width: `${value}%` as any, backgroundColor: C.text }]} />
-        <View style={[volStyles.thumb, { left: thumbLeft - 8, backgroundColor: C.text }]} />
+        <View style={[volStyles.thumb, { left: thumbLeft, backgroundColor: C.text }]} />
       </View>
     </View>
   );

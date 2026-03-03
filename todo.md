@@ -146,3 +146,7 @@
 - [x] EQSlider component: switch from useColorScheme to useThemeContext
 - [x] TimerSheet component: switch from useColorScheme to useThemeContext
 - [x] Root layout StatusBar: follow theme context
+
+## Bug Fixes (Round 3)
+
+- [x] Fix buggy volume slider — rewrote PanResponder to use gestureState.dx + live valueRef to fix stale closure bug
