@@ -21,12 +21,14 @@ import * as Haptics from 'expo-haptics';
 
 // ─── Horizontal Volume Slider ──────────────────────────────────────────────
 function VolumeSlider({
+  label,
   value,
   onChange,
   isDark,
   onDragStart,
   onDragEnd,
 }: {
+  label: string;
   value: number;
   onChange: (v: number) => void;
   isDark: boolean;
@@ -34,7 +36,6 @@ function VolumeSlider({
   onDragEnd?: () => void;
 }) {
   const C = isDark ? DARK : LIGHT;
-  // useState so onLayout triggers a re-render and thumbLeft updates immediately
   const [trackWidth, setTrackWidth] = useState(0);
   const trackWidthRef = useRef(0);
   const lastHapticRef = useRef(value);
@@ -44,11 +45,9 @@ function VolumeSlider({
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
-      // Only claim horizontal gestures to avoid conflicting with vertical scroll
       onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dx) > Math.abs(gs.dy),
       onShouldBlockNativeResponder: () => true,
       onPanResponderGrant: (e) => {
-        // Jump to touch position immediately — works from any point on the track
         const tw = trackWidthRef.current;
         if (tw > 0) {
           const next = clamp((e.nativeEvent.locationX / tw) * 100);
@@ -60,7 +59,6 @@ function VolumeSlider({
       onPanResponderMove: (e) => {
         const tw = trackWidthRef.current;
         if (tw <= 0) return;
-        // Use locationX directly — no drift, works from any start position
         const next = clamp((e.nativeEvent.locationX / tw) * 100);
         if (Math.abs(next - lastHapticRef.current) >= 5 && Platform.OS !== 'web') {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -81,19 +79,19 @@ function VolumeSlider({
   return (
     <View style={{ marginBottom: 8 }}>
       <View style={[volStyles.header, { borderBottomColor: C.border }]}>
-        <Text style={[volStyles.label, { color: C.muted }]}>VOLUME</Text>
+        <Text style={[volStyles.label, { color: C.muted }]}>{label}</Text>
         <Text style={[volStyles.valueText, { color: C.text }]}>{Math.round(value)}</Text>
       </View>
       <View
         style={volStyles.trackWrap}
         accessibilityRole="adjustable"
-        accessibilityLabel={`Master volume, ${Math.round(value)} percent`}
+        accessibilityLabel={`${label} volume, ${Math.round(value)} percent`}
         accessibilityValue={{ min: 0, max: 100, now: Math.round(value) }}
         accessibilityHint="Drag left or right to adjust"
         onLayout={(e) => {
           const w = e.nativeEvent.layout.width;
-          trackWidthRef.current = w; // keep ref for PanResponder closure
-          setTrackWidth(w);          // trigger re-render so thumbLeft updates
+          trackWidthRef.current = w;
+          setTrackWidth(w);
         }}
         {...panResponder.panHandlers}
       >
@@ -144,9 +142,6 @@ const volStyles = StyleSheet.create({
   },
   thumb: {
     position: 'absolute',
-    width: 12,
-    height: 12,
-    borderRadius: 6,
     top: 16,
   },
 });
@@ -161,20 +156,24 @@ export default function MixerScreen() {
   const C = isDark ? DARK : LIGHT;
 
   const {
-    activeSoundscapeId,
-    isPlaying,
+    layerAId,
+    layerBId,
+    layerAVolume,
+    layerBVolume,
+    layerAPlaying,
+    layerBPlaying,
     levels,
-    masterVolume,
     favorites,
     timerEndTime,
     bellEnabled,
     bellIntervalMinutes,
-    play,
-    pause,
-    resume,
+    playLayer,
+    clearLayer,
+    pauseAll,
+    resumeAll,
     setLevel,
     applyPreset,
-    setMasterVolume,
+    setLayerVolume,
     toggleFavorite,
     setBell,
   } = useAudioEngine();
@@ -184,14 +183,20 @@ export default function MixerScreen() {
   const [scrollEnabled, setScrollEnabled] = useState(true);
 
   const soundscape = SOUNDSCAPES.find(s => s.id === id);
-  const isActive = activeSoundscapeId === id;
+  const isLayerA = layerAId === id;
+  const isLayerB = layerBId === id;
+  const isActive = isLayerA || isLayerB;
+  const isPlaying = (isLayerA && layerAPlaying) || (isLayerB && layerBPlaying);
   const isFavorite = favorites.includes(id ?? '');
+
+  // The "other" layer's soundscape (for the layer B info strip)
+  const layerBSoundscape = layerBId ? SOUNDSCAPES.find(s => s.id === layerBId) : null;
 
   useKeepAwake();
 
   useEffect(() => {
     if (soundscape && !isActive) {
-      play(soundscape.id);
+      playLayer('A', soundscape.id);
     }
   }, [soundscape?.id]);
 
@@ -219,13 +224,13 @@ export default function MixerScreen() {
 
   const handlePlayPause = () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (isActive && isPlaying) pause();
-    else if (isActive && !isPlaying) resume();
-    else play(soundscape.id);
+    const anyPlaying = layerAPlaying || layerBPlaying;
+    if (anyPlaying) pauseAll();
+    else resumeAll();
   };
 
-  const currentLevels = isActive ? levels : soundscape.presets[0].levels;
-  const playing = isActive && isPlaying;
+  const currentLevels = isLayerA ? levels : soundscape.presets[0].levels;
+  const playing = layerAPlaying || layerBPlaying;
 
   return (
     <View style={[styles.container, { backgroundColor: C.bg }]}>
@@ -289,11 +294,11 @@ export default function MixerScreen() {
           </Text>
           <Text style={[styles.soundDesc, { color: C.muted }]}>{soundscape.description}</Text>
 
-          {/* Play / Pause inline in hero */}
+          {/* Play / Pause */}
           <Pressable
             onPress={handlePlayPause}
             accessibilityRole="button"
-            accessibilityLabel={playing ? `Pause ${soundscape.name}` : `Play ${soundscape.name}`}
+            accessibilityLabel={playing ? 'Pause all layers' : 'Resume all layers'}
             accessibilityState={{ selected: playing }}
             style={({ pressed }) => [
               styles.playBtn,
@@ -423,14 +428,63 @@ export default function MixerScreen() {
           )}
         </View>
 
-        {/* Master Volume */}
+        {/* ─── Volume Section ─────────────────────────────────────────── */}
+        <View style={[styles.sectionHeader, { borderBottomColor: C.border }]}>
+          <Text style={[styles.sectionLabel, { color: C.muted }]}>VOLUME</Text>
+          {layerBSoundscape && (
+            <Text style={[styles.sectionSub, { color: C.muted }]}>Two layers active</Text>
+          )}
+        </View>
+
+        {/* Layer A volume — always shown */}
         <VolumeSlider
-          value={isActive ? masterVolume : 80}
-          onChange={setMasterVolume}
+          label={layerBSoundscape ? `A · ${soundscape.name.toUpperCase()}` : 'VOLUME'}
+          value={isLayerA ? layerAVolume : 80}
+          onChange={(v) => setLayerVolume('A', v)}
           isDark={isDark}
           onDragStart={() => setScrollEnabled(false)}
           onDragEnd={() => setScrollEnabled(true)}
         />
+
+        {/* Layer B volume — only shown when a second layer is active */}
+        {layerBSoundscape && (
+          <View style={{ marginTop: 8 }}>
+            <VolumeSlider
+              label={`B · ${layerBSoundscape.name.toUpperCase()}`}
+              value={layerBVolume}
+              onChange={(v) => setLayerVolume('B', v)}
+              isDark={isDark}
+              onDragStart={() => setScrollEnabled(false)}
+              onDragEnd={() => setScrollEnabled(true)}
+            />
+            {/* Clear Layer B button */}
+            <Pressable
+              onPress={() => {
+                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                clearLayer('B');
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={`Remove ${layerBSoundscape.name} from Layer B`}
+              style={({ pressed }) => [
+                styles.clearLayerBtn,
+                { borderColor: C.border },
+                pressed && { opacity: 0.5 },
+              ]}
+            >
+              <Text style={[styles.clearLayerText, { color: C.muted }]}>
+                REMOVE LAYER B
+              </Text>
+            </Pressable>
+          </View>
+        )}
+
+        {/* Add Layer B hint — shown when no Layer B is set */}
+        {!layerBSoundscape && (
+          <Text style={[styles.layerHint, { color: C.muted }]}>
+            Long press any sound on the home screen to add a second layer.
+          </Text>
+        )}
+
       </ScrollView>
 
       {/* Timer Sheet */}
@@ -630,5 +684,29 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     letterSpacing: 1,
     lineHeight: 18,
+  },
+  clearLayerBtn: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    minHeight: 44,
+    justifyContent: 'center',
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  clearLayerText: {
+    fontSize: 10,
+    fontWeight: '400',
+    letterSpacing: 3,
+    lineHeight: 16,
+  },
+  layerHint: {
+    fontSize: 12,
+    fontWeight: '400',
+    letterSpacing: 0.2,
+    lineHeight: 18,
+    marginTop: 4,
+    marginBottom: 16,
   },
 });

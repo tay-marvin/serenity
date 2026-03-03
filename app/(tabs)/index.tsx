@@ -23,11 +23,26 @@ export default function HomeScreen() {
   const isDark = colorScheme === 'dark';
   const C = isDark ? DARK : LIGHT;
 
-  const { activeSoundscapeId, isPlaying } = useAudioEngine();
+  const { layerAId, layerBId, layerAPlaying, layerBPlaying, playLayer, clearLayer } = useAudioEngine();
 
+  // Tap → set Layer A and open mixer
   const handlePress = (sound: Soundscape) => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    playLayer('A', sound.id);
     router.push(`/mixer/${sound.id}` as any);
+  };
+
+  // Long-press → toggle Layer B
+  const handleLongPress = (sound: Soundscape) => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (layerBId === sound.id) {
+      // Already Layer B — clear it
+      clearLayer('B');
+    } else {
+      // Set as Layer B (can't be the same as Layer A)
+      if (layerAId === sound.id) return; // silently ignore — same sound can't be both layers
+      playLayer('B', sound.id);
+    }
   };
 
   const handleToggleTheme = () => {
@@ -36,19 +51,31 @@ export default function HomeScreen() {
   };
 
   const renderItem = ({ item, index }: { item: Soundscape; index: number }) => {
-    const isActive = activeSoundscapeId === item.id && isPlaying;
+    const isLayerA = layerAId === item.id;
+    const isLayerB = layerBId === item.id;
+    const isActive = isLayerA || isLayerB;
+    const isPlaying = (isLayerA && layerAPlaying) || (isLayerB && layerBPlaying);
+
     return (
       <Pressable
         onPress={() => handlePress(item)}
+        onLongPress={() => handleLongPress(item)}
+        delayLongPress={400}
         accessibilityRole="button"
-        accessibilityLabel={`${item.name}, ${item.category}${isActive ? ', now playing' : ''}`}
+        accessibilityLabel={
+          isLayerA
+            ? `${item.name}, Layer A, ${layerAPlaying ? 'playing' : 'paused'}. Long press to add as Layer B.`
+            : isLayerB
+            ? `${item.name}, Layer B, ${layerBPlaying ? 'playing' : 'paused'}. Long press to remove Layer B.`
+            : `${item.name}, ${item.category}. Tap to play, long press to add as second layer.`
+        }
         style={({ pressed }) => [
           styles.row,
           { borderBottomColor: C.border },
           pressed && { opacity: 0.5 },
         ]}
       >
-        {/* Index number — Co-Star uses small numerals in lists */}
+        {/* Index number */}
         <Text style={[styles.rowIndex, { color: C.muted }]}>
           {String(index + 1).padStart(2, '0')}
         </Text>
@@ -57,7 +84,7 @@ export default function HomeScreen() {
         <Text
           style={[
             styles.rowName,
-            { color: isActive ? C.text : C.text },
+            { color: C.text },
             isActive && styles.rowNameActive,
           ]}
           numberOfLines={1}
@@ -65,11 +92,23 @@ export default function HomeScreen() {
           {item.name}
         </Text>
 
-        {/* Right side: playing indicator or category */}
+        {/* Right side: layer badge, playing dot, or category */}
         <View style={styles.rowRight}>
-          {isActive ? (
-            <View style={styles.playingDot}>
-              <View style={[styles.dot, { backgroundColor: C.text }]} />
+          {isLayerA || isLayerB ? (
+            <View style={styles.badgeRow}>
+              {isLayerA && (
+                <View style={[styles.badge, { borderColor: C.text }]}>
+                  <Text style={[styles.badgeText, { color: C.text }]}>A</Text>
+                </View>
+              )}
+              {isLayerB && (
+                <View style={[styles.badge, { borderColor: C.muted }]}>
+                  <Text style={[styles.badgeText, { color: C.muted }]}>B</Text>
+                </View>
+              )}
+              {isPlaying && (
+                <View style={[styles.dot, { backgroundColor: C.text }]} />
+              )}
             </View>
           ) : (
             <Text style={[styles.rowCategory, { color: C.muted }]}>
@@ -106,6 +145,15 @@ export default function HomeScreen() {
           />
         </Pressable>
       </View>
+
+      {/* Layer hint — only shown when a second layer is active */}
+      {layerBId && (
+        <View style={[styles.layerHint, { borderBottomColor: C.border }]}>
+          <Text style={[styles.layerHintText, { color: C.muted }]}>
+            LAYERING · LONG PRESS TO REMOVE LAYER B
+          </Text>
+        </View>
+      )}
 
       {/* Sound list */}
       <FlatList
@@ -158,7 +206,6 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     marginBottom: 2,
   },
-
   appTitle: {
     fontFamily: 'PlayfairDisplay-Regular',
     fontSize: 32,
@@ -171,6 +218,17 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     letterSpacing: 3,
     lineHeight: 16,
+  },
+  layerHint: {
+    paddingHorizontal: 24,
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  layerHintText: {
+    fontSize: 9,
+    fontWeight: '400',
+    letterSpacing: 2,
+    lineHeight: 14,
   },
   row: {
     flexDirection: 'row',
@@ -210,11 +268,24 @@ const styles = StyleSheet.create({
     lineHeight: 14,
     textAlign: 'right',
   },
-  playingDot: {
-    width: 20,
-    height: 20,
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  badge: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  badgeText: {
+    fontSize: 9,
+    fontWeight: '400',
+    letterSpacing: 0.5,
+    lineHeight: 11,
   },
   dot: {
     width: 5,

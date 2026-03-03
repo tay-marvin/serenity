@@ -19,11 +19,19 @@ const FAVORITES_KEY = 'serenity_favorites';
 const APP_ARTWORK_URL =
   'https://d2xsxph8kpxj0f.cloudfront.net/310519663324303301/BrTNGmudEFZLSEsVVpNvpk/serenity-icon-GThH38iQV33v9GWNBuPiQY.png';
 
+export type LayerSlot = 'A' | 'B';
+
 export interface AudioEngineState {
-  activeSoundscapeId: string | null;
-  isPlaying: boolean;
+  // Layer A — primary sound
+  layerAId: string | null;
+  layerAVolume: number; // 0-100
+  layerAPlaying: boolean;
+  // Layer B — secondary sound
+  layerBId: string | null;
+  layerBVolume: number; // 0-100
+  layerBPlaying: boolean;
+  // Shared EQ levels (applied to Layer A)
   levels: number[]; // 0-100 for each of 10 bands
-  masterVolume: number; // 0-100
   favorites: string[];
   timerMinutes: number | null;
   timerEndTime: number | null;
@@ -32,28 +40,44 @@ export interface AudioEngineState {
 }
 
 interface AudioEngineContext extends AudioEngineState {
-  play: (soundscapeId: string) => void;
-  pause: () => void;
-  resume: () => void;
+  // Layer control
+  playLayer: (slot: LayerSlot, soundscapeId: string) => void;
+  clearLayer: (slot: LayerSlot) => void;
+  pauseAll: () => void;
+  resumeAll: () => void;
+  setLayerVolume: (slot: LayerSlot, volume: number) => void;
+  // EQ (applied to Layer A)
   setLevel: (bandIndex: number, value: number) => void;
   setAllLevels: (levels: number[]) => void;
   applyPreset: (preset: EQPreset) => void;
-  setMasterVolume: (volume: number) => void;
+  // Misc
   toggleFavorite: (id: string) => void;
   startTimer: (minutes: number, fadeOut: boolean) => void;
   cancelTimer: () => void;
   setBell: (enabled: boolean, intervalMinutes: number) => void;
-  activeSoundscape: Soundscape | null;
+  // Derived helpers
+  activeSoundscape: Soundscape | null; // Layer A soundscape (for backward compat)
+  isPlaying: boolean; // true if either layer is playing
+  activeSoundscapeId: string | null; // Layer A id (backward compat)
+  masterVolume: number; // Layer A volume (backward compat)
+  // Legacy aliases kept for backward compatibility
+  play: (id: string) => void;
+  pause: () => void;
+  resume: () => void;
+  setMasterVolume: (v: number) => void;
 }
 
 const AudioEngineCtx = createContext<AudioEngineContext | null>(null);
 
 export function AudioEngineProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AudioEngineState>({
-    activeSoundscapeId: null,
-    isPlaying: false,
+    layerAId: null,
+    layerAVolume: 80,
+    layerAPlaying: false,
+    layerBId: null,
+    layerBVolume: 60,
+    layerBPlaying: false,
     levels: [...DEFAULT_LEVELS],
-    masterVolume: 80,
     favorites: [],
     timerMinutes: null,
     timerEndTime: null,
@@ -61,14 +85,14 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
     bellEnabled: false,
   });
 
-  const playerRef = useRef<AudioPlayer | null>(null);
+  const playerARef = useRef<AudioPlayer | null>(null);
+  const playerBRef = useRef<AudioPlayer | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bellRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const bellPlayerRef = useRef<AudioPlayer | null>(null);
   const fadeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const currentVolumeRef = useRef(0.8);
-  // Track active soundscape id in a ref so callbacks can access it without stale closure
-  const activeSoundscapeIdRef = useRef<string | null>(null);
+  const currentVolumeARef = useRef(0.8);
+  const currentVolumeBRef = useRef(0.6);
 
   // Load persisted state
   useEffect(() => {
@@ -83,7 +107,8 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
           setState(prev => ({
             ...prev,
             levels: parsed.levels || prev.levels,
-            masterVolume: parsed.masterVolume ?? prev.masterVolume,
+            layerAVolume: parsed.layerAVolume ?? parsed.masterVolume ?? prev.layerAVolume,
+            layerBVolume: parsed.layerBVolume ?? prev.layerBVolume,
           }));
         }
         if (savedFavs) {
@@ -93,7 +118,7 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
     })();
   }, []);
 
-  // Setup audio mode — background playback + doNotMix required for lock screen controls
+  // Setup audio mode
   useEffect(() => {
     if (Platform.OS !== 'web') {
       setAudioModeAsync({
@@ -107,11 +132,11 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      // Deregister lock screen before removing player
-      if (playerRef.current && Platform.OS !== 'web') {
-        try { playerRef.current.setActiveForLockScreen(false); } catch {}
+      if (playerARef.current && Platform.OS !== 'web') {
+        try { playerARef.current.setActiveForLockScreen(false); } catch {}
       }
-      playerRef.current?.remove();
+      playerARef.current?.remove();
+      playerBRef.current?.remove();
       bellPlayerRef.current?.remove();
       if (timerRef.current) clearTimeout(timerRef.current);
       if (bellRef.current) clearInterval(bellRef.current);
@@ -119,15 +144,11 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
     };
   }, []);
 
-  const getEffectiveVolume = useCallback((levels: number[], masterVolume: number) => {
+  const getEffectiveVolume = useCallback((levels: number[], volume: number) => {
     const avgLevel = levels.reduce((a, b) => a + b, 0) / levels.length;
-    return (avgLevel / 100) * (masterVolume / 100);
+    return (avgLevel / 100) * (volume / 100);
   }, []);
 
-  /**
-   * Register the current player as the active lock screen player with
-   * the soundscape name as the Now Playing title.
-   */
   const activateLockScreen = useCallback((player: AudioPlayer, soundscape: Soundscape) => {
     if (Platform.OS === 'web') return;
     try {
@@ -138,93 +159,157 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
         artworkUrl: APP_ARTWORK_URL,
       });
     } catch (e) {
-      // Gracefully ignore — lock screen controls are a nice-to-have
       console.warn('Lock screen activation failed:', e);
     }
   }, []);
 
-  const play = useCallback(async (soundscapeId: string) => {
+  const playLayer = useCallback(async (slot: LayerSlot, soundscapeId: string) => {
     const soundscape = SOUNDSCAPES.find(s => s.id === soundscapeId);
     if (!soundscape) return;
 
-    // Deregister previous player from lock screen before removing it
+    const playerRef = slot === 'A' ? playerARef : playerBRef;
+    const volumeRef = slot === 'A' ? currentVolumeARef : currentVolumeBRef;
+
+    // Deregister lock screen from old player
     if (playerRef.current && Platform.OS !== 'web') {
       try { playerRef.current.setActiveForLockScreen(false); } catch {}
     }
-
-    // Stop existing player
-    if (playerRef.current) {
-      playerRef.current.remove();
-      playerRef.current = null;
-    }
+    playerRef.current?.remove();
+    playerRef.current = null;
 
     try {
       const player = createAudioPlayer({ uri: soundscape.audioUrl });
       player.loop = true;
-      const vol = getEffectiveVolume(state.levels, state.masterVolume);
+
+      // Compute volume — Layer A uses EQ levels, Layer B uses flat volume
+      const vol = slot === 'A'
+        ? getEffectiveVolume(state.levels, state.layerAVolume)
+        : state.layerBVolume / 100;
+
       player.volume = vol;
       player.play();
       playerRef.current = player;
-      currentVolumeRef.current = vol;
-      activeSoundscapeIdRef.current = soundscapeId;
+      volumeRef.current = vol;
 
-      // Register with lock screen / Control Center
-      activateLockScreen(player, soundscape);
+      // Only Layer A controls lock screen
+      if (slot === 'A') {
+        activateLockScreen(player, soundscape);
+      }
 
       setState(prev => ({
         ...prev,
-        activeSoundscapeId: soundscapeId,
-        isPlaying: true,
+        ...(slot === 'A'
+          ? { layerAId: soundscapeId, layerAPlaying: true }
+          : { layerBId: soundscapeId, layerBPlaying: true }),
       }));
     } catch (e) {
       console.error('Audio play error:', e);
     }
-  }, [state.levels, state.masterVolume, getEffectiveVolume, activateLockScreen]);
+  }, [state.levels, state.layerAVolume, state.layerBVolume, getEffectiveVolume, activateLockScreen]);
 
-  const pause = useCallback(() => {
-    if (playerRef.current) {
-      playerRef.current.pause();
+  const clearLayer = useCallback((slot: LayerSlot) => {
+    const playerRef = slot === 'A' ? playerARef : playerBRef;
+    if (playerRef.current && Platform.OS !== 'web' && slot === 'A') {
+      try { playerRef.current.setActiveForLockScreen(false); } catch {}
     }
-    setState(prev => ({ ...prev, isPlaying: false }));
+    playerRef.current?.remove();
+    playerRef.current = null;
+    setState(prev => ({
+      ...prev,
+      ...(slot === 'A'
+        ? { layerAId: null, layerAPlaying: false }
+        : { layerBId: null, layerBPlaying: false }),
+    }));
   }, []);
 
-  const resume = useCallback(() => {
-    if (playerRef.current) {
-      playerRef.current.play();
-      // Re-register lock screen in case it was cleared
-      const id = activeSoundscapeIdRef.current;
+  const pauseAll = useCallback(() => {
+    playerARef.current?.pause();
+    playerBRef.current?.pause();
+    setState(prev => ({ ...prev, layerAPlaying: false, layerBPlaying: false }));
+  }, []);
+
+  const resumeAll = useCallback(() => {
+    if (playerARef.current) {
+      playerARef.current.play();
+      // Re-register lock screen
+      const id = state.layerAId;
       if (id && Platform.OS !== 'web') {
         const soundscape = SOUNDSCAPES.find(s => s.id === id);
-        if (soundscape && playerRef.current) {
-          activateLockScreen(playerRef.current, soundscape);
+        if (soundscape && playerARef.current) {
+          activateLockScreen(playerARef.current, soundscape);
         }
       }
     }
-    setState(prev => ({ ...prev, isPlaying: true }));
-  }, [activateLockScreen]);
+    if (playerBRef.current) playerBRef.current.play();
+    setState(prev => ({
+      ...prev,
+      layerAPlaying: !!playerARef.current,
+      layerBPlaying: !!playerBRef.current,
+    }));
+  }, [state.layerAId, activateLockScreen]);
+
+  const setLayerVolume = useCallback((slot: LayerSlot, volume: number) => {
+    setState(prev => {
+      const newState = { ...prev };
+      if (slot === 'A') {
+        newState.layerAVolume = volume;
+        const vol = getEffectiveVolume(prev.levels, volume);
+        if (playerARef.current) {
+          playerARef.current.volume = vol;
+          currentVolumeARef.current = vol;
+        }
+        AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({
+          levels: prev.levels,
+          layerAVolume: volume,
+          layerBVolume: prev.layerBVolume,
+        })).catch(() => {});
+      } else {
+        newState.layerBVolume = volume;
+        const vol = volume / 100;
+        if (playerBRef.current) {
+          playerBRef.current.volume = vol;
+          currentVolumeBRef.current = vol;
+        }
+        AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({
+          levels: prev.levels,
+          layerAVolume: prev.layerAVolume,
+          layerBVolume: volume,
+        })).catch(() => {});
+      }
+      return newState;
+    });
+  }, [getEffectiveVolume]);
 
   const setLevel = useCallback((bandIndex: number, value: number) => {
     setState(prev => {
       const newLevels = [...prev.levels];
       newLevels[bandIndex] = value;
-      const vol = getEffectiveVolume(newLevels, prev.masterVolume);
-      if (playerRef.current) {
-        playerRef.current.volume = vol;
-        currentVolumeRef.current = vol;
+      const vol = getEffectiveVolume(newLevels, prev.layerAVolume);
+      if (playerARef.current) {
+        playerARef.current.volume = vol;
+        currentVolumeARef.current = vol;
       }
-      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ levels: newLevels, masterVolume: prev.masterVolume })).catch(() => {});
+      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({
+        levels: newLevels,
+        layerAVolume: prev.layerAVolume,
+        layerBVolume: prev.layerBVolume,
+      })).catch(() => {});
       return { ...prev, levels: newLevels };
     });
   }, [getEffectiveVolume]);
 
   const setAllLevels = useCallback((levels: number[]) => {
     setState(prev => {
-      const vol = getEffectiveVolume(levels, prev.masterVolume);
-      if (playerRef.current) {
-        playerRef.current.volume = vol;
-        currentVolumeRef.current = vol;
+      const vol = getEffectiveVolume(levels, prev.layerAVolume);
+      if (playerARef.current) {
+        playerARef.current.volume = vol;
+        currentVolumeARef.current = vol;
       }
-      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ levels, masterVolume: prev.masterVolume })).catch(() => {});
+      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({
+        levels,
+        layerAVolume: prev.layerAVolume,
+        layerBVolume: prev.layerBVolume,
+      })).catch(() => {});
       return { ...prev, levels };
     });
   }, [getEffectiveVolume]);
@@ -232,18 +317,6 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
   const applyPreset = useCallback((preset: EQPreset) => {
     setAllLevels([...preset.levels]);
   }, [setAllLevels]);
-
-  const setMasterVolume = useCallback((volume: number) => {
-    setState(prev => {
-      const vol = getEffectiveVolume(prev.levels, volume);
-      if (playerRef.current) {
-        playerRef.current.volume = vol;
-        currentVolumeRef.current = vol;
-      }
-      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ levels: prev.levels, masterVolume: volume })).catch(() => {});
-      return { ...prev, masterVolume: volume };
-    });
-  }, [getEffectiveVolume]);
 
   const toggleFavorite = useCallback((id: string) => {
     setState(prev => {
@@ -263,30 +336,45 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
     setState(prev => ({ ...prev, timerMinutes: minutes, timerEndTime: endTime }));
 
     timerRef.current = setTimeout(() => {
-      if (fadeOut && playerRef.current) {
-        // Fade out over 30 seconds
-        const startVol = currentVolumeRef.current;
+      if (fadeOut) {
+        const startVolA = currentVolumeARef.current;
+        const startVolB = currentVolumeBRef.current;
         const steps = 30;
         let step = 0;
         fadeIntervalRef.current = setInterval(() => {
           step++;
-          const newVol = startVol * (1 - step / steps);
-          if (playerRef.current) playerRef.current.volume = Math.max(0, newVol);
+          const factor = Math.max(0, 1 - step / steps);
+          if (playerARef.current) playerARef.current.volume = startVolA * factor;
+          if (playerBRef.current) playerBRef.current.volume = startVolB * factor;
           if (step >= steps) {
             clearInterval(fadeIntervalRef.current!);
-            if (playerRef.current && Platform.OS !== 'web') {
-              try { playerRef.current.setActiveForLockScreen(false); } catch {}
+            if (playerARef.current && Platform.OS !== 'web') {
+              try { playerARef.current.setActiveForLockScreen(false); } catch {}
             }
-            playerRef.current?.pause();
-            setState(prev => ({ ...prev, isPlaying: false, timerMinutes: null, timerEndTime: null }));
+            playerARef.current?.pause();
+            playerBRef.current?.pause();
+            setState(prev => ({
+              ...prev,
+              layerAPlaying: false,
+              layerBPlaying: false,
+              timerMinutes: null,
+              timerEndTime: null,
+            }));
           }
         }, 1000);
       } else {
-        if (playerRef.current && Platform.OS !== 'web') {
-          try { playerRef.current.setActiveForLockScreen(false); } catch {}
+        if (playerARef.current && Platform.OS !== 'web') {
+          try { playerARef.current.setActiveForLockScreen(false); } catch {}
         }
-        playerRef.current?.pause();
-        setState(prev => ({ ...prev, isPlaying: false, timerMinutes: null, timerEndTime: null }));
+        playerARef.current?.pause();
+        playerBRef.current?.pause();
+        setState(prev => ({
+          ...prev,
+          layerAPlaying: false,
+          layerBPlaying: false,
+          timerMinutes: null,
+          timerEndTime: null,
+        }));
       }
     }, minutes * 60 * 1000);
   }, []);
@@ -309,7 +397,6 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
           });
           bellPlayer.volume = 1.0;
           bellPlayer.play();
-          // Release after 20 seconds (bell is 17s long)
           setTimeout(() => {
             try { bellPlayer.remove(); } catch {}
           }, 20000);
@@ -320,26 +407,38 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
     }
   }, []);
 
-  const activeSoundscape = state.activeSoundscapeId
-    ? SOUNDSCAPES.find(s => s.id === state.activeSoundscapeId) ?? null
+  // Derived backward-compat values
+  const activeSoundscape = state.layerAId
+    ? SOUNDSCAPES.find(s => s.id === state.layerAId) ?? null
     : null;
+  const isPlaying = state.layerAPlaying || state.layerBPlaying;
 
   return (
     <AudioEngineCtx.Provider value={{
       ...state,
-      play,
-      pause,
-      resume,
+      playLayer,
+      clearLayer,
+      pauseAll,
+      resumeAll,
+      setLayerVolume,
       setLevel,
       setAllLevels,
       applyPreset,
-      setMasterVolume,
       toggleFavorite,
       startTimer,
       cancelTimer,
       setBell,
       activeSoundscape,
-    }}>
+      isPlaying,
+      // Backward-compat aliases
+      activeSoundscapeId: state.layerAId,
+      masterVolume: state.layerAVolume,
+      // Legacy stubs — kept so old call sites don't crash
+      play: (id: string) => playLayer('A', id),
+      pause: pauseAll,
+      resume: resumeAll,
+      setMasterVolume: (v: number) => setLayerVolume('A', v),
+    } as any}>
       {children}
     </AudioEngineCtx.Provider>
   );

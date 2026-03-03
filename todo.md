@@ -158,3 +158,12 @@
 ## Bug Fixes (Round 5)
 
 - [x] Fix volume slider: switched trackWidth to useState (triggers re-render on layout), use locationX directly in gesture (no drift, works from any touch point), horizontal-only gesture claim to avoid ScrollView conflict
+
+## Sound Layering Feature
+
+- [x] Support two simultaneous active sounds (Layer A + Layer B)
+- [x] Home screen: tap to set Layer A; long-press (or second tap on active) to set Layer B
+- [x] Home screen: show "A" / "B" badges on active rows
+- [x] Audio engine: play both sounds concurrently with independent volumes
+- [x] Mixer screen: show both active layers with individual volume sliders
+- [x] Clearing a layer stops that sound and removes its badge

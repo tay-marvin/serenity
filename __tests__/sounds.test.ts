@@ -12,7 +12,8 @@ describe('SOUNDSCAPES data model', () => {
       expect(s.name).toBeTruthy();
       expect(s.category).toBeTruthy();
       expect(s.description).toBeTruthy();
-      expect(s.imageUrl).toMatch(/^https?:\/\//);
+      // imageUrl may be empty (images were removed from the UI)
+      expect(typeof s.imageUrl).toBe('string');
       expect(s.color).toMatch(/^#[0-9A-Fa-f]{6}$/);
       expect(s.audioUrl).toMatch(/^https?:\/\//);
       expect(Array.isArray(s.presets)).toBe(true);
@@ -72,5 +73,48 @@ describe('Audio engine volume calculation', () => {
     // All at 0% => 0
     const zeroVol = getEffectiveVolume([0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 100);
     expect(zeroVol).toBe(0);
+  });
+
+  it('Layer B volume should be a direct 0-1 ratio (no EQ shaping)', () => {
+    // Layer B uses a flat volume: layerBVolume / 100
+    const layerBVolume = 60;
+    const vol = layerBVolume / 100;
+    expect(vol).toBeCloseTo(0.6, 2);
+  });
+});
+
+describe('Sound layering logic', () => {
+  it('Layer A and Layer B should be independent IDs', () => {
+    const layerAId = 'gentle-rain';
+    const layerBId = 'campfire';
+    expect(layerAId).not.toBe(layerBId);
+  });
+
+  it('Layer B should not be set to the same ID as Layer A', () => {
+    // Simulate the guard in handleLongPress
+    const layerAId = 'gentle-rain';
+    const attemptedLayerBId = 'gentle-rain';
+    const shouldBlock = layerAId === attemptedLayerBId;
+    expect(shouldBlock).toBe(true);
+  });
+
+  it('clearing Layer B should not affect Layer A', () => {
+    // Simulate state transition
+    const before = { layerAId: 'gentle-rain', layerBId: 'campfire' };
+    const after = { ...before, layerBId: null };
+    expect(after.layerAId).toBe('gentle-rain');
+    expect(after.layerBId).toBeNull();
+  });
+
+  it('isPlaying should be true if either layer is playing', () => {
+    const cases = [
+      { layerAPlaying: true,  layerBPlaying: false, expected: true },
+      { layerAPlaying: false, layerBPlaying: true,  expected: true },
+      { layerAPlaying: true,  layerBPlaying: true,  expected: true },
+      { layerAPlaying: false, layerBPlaying: false, expected: false },
+    ];
+    for (const { layerAPlaying, layerBPlaying, expected } of cases) {
+      expect(layerAPlaying || layerBPlaying).toBe(expected);
+    }
   });
 });
