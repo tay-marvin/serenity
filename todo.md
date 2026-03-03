@@ -129,3 +129,7 @@
 - [x] Persist theme preference to AsyncStorage
 - [x] Add sun/moon toggle button to Home screen header
 - [x] Wire all screens to read from theme context instead of useColorScheme directly
+
+## Theme Toggle Icon Update
+
+- [x] Replace ●/○ text with outlined sun (light mode) and moon (dark mode) SF Symbol icons

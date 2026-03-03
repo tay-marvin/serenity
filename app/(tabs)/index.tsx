@@ -6,6 +6,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAudioEngine } from '@/lib/audio-engine';
@@ -98,9 +99,11 @@ export default function HomeScreen() {
             pressed && { opacity: 0.5 },
           ]}
         >
-          <Text style={[styles.themeToggleIcon, { color: C.text }]}>
-            {isDark ? '○' : '●'}
-          </Text>
+          <IconSymbol
+            name={isDark ? 'sun.max' : 'moon'}
+            size={16}
+            color={C.text}
+          />
         </Pressable>
       </View>
 
@@ -155,10 +158,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     marginBottom: 2,
   },
-  themeToggleIcon: {
-    fontSize: 18,
-    lineHeight: 22,
-  },
+
   appTitle: {
     fontFamily: 'PlayfairDisplay-Regular',
     fontSize: 32,
