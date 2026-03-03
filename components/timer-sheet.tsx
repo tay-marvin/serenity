@@ -7,8 +7,8 @@ import {
   Text,
   View,
   Platform,
-  useColorScheme,
 } from 'react-native';
+import { useThemeContext } from '@/lib/theme-provider';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAudioEngine } from '@/lib/audio-engine';
 import * as Haptics from 'expo-haptics';
@@ -24,8 +24,8 @@ interface TimerSheetProps {
 export function TimerSheet({ visible, onClose, accentColor }: TimerSheetProps) {
   const { startTimer, cancelTimer, timerEndTime } = useAudioEngine();
   const insets = useSafeAreaInsets();
-  const scheme = useColorScheme() ?? 'light';
-  const isDark = scheme === 'dark';
+  const { colorScheme } = useThemeContext();
+  const isDark = colorScheme === 'dark';
 
   const bg = isDark ? '#0A0A0A' : '#FAFAFA';
   const textColor = isDark ? '#FFFFFF' : '#000000';

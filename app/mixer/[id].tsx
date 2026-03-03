@@ -8,8 +8,8 @@ import {
   Platform,
   Dimensions,
   PanResponder,
-  useColorScheme,
 } from 'react-native';
+import { useThemeContext } from '@/lib/theme-provider';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useKeepAwake } from 'expo-keep-awake';
@@ -134,8 +134,8 @@ export default function MixerScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const scheme = useColorScheme() ?? 'light';
-  const isDark = scheme === 'dark';
+  const { colorScheme } = useThemeContext();
+  const isDark = colorScheme === 'dark';
   const C = isDark ? DARK : LIGHT;
 
   const {
@@ -310,7 +310,6 @@ export default function MixerScreen() {
               value={currentLevels[i] ?? 70}
               accentColor={C.text}
               onChange={(val) => setLevel(i, val)}
-              isDark={isDark}
             />
           ))}
         </ScrollView>

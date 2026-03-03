@@ -5,14 +5,13 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useAudioEngine } from '@/lib/audio-engine';
 import { SOUNDSCAPES } from '@/lib/sounds';
 import * as Haptics from 'expo-haptics';
+import { useThemeContext } from '@/lib/theme-provider';
 
-interface MiniPlayerProps {
-  isDark?: boolean;
-}
-
-export function MiniPlayer({ isDark = true }: MiniPlayerProps) {
+export function MiniPlayer() {
   const { activeSoundscapeId, isPlaying, pause, resume } = useAudioEngine();
   const router = useRouter();
+  const { colorScheme } = useThemeContext();
+  const isDark = colorScheme === 'dark';
 
   const bg = isDark ? '#000000' : '#FFFFFF';
   const borderColor = isDark ? '#222222' : '#E0E0E0';

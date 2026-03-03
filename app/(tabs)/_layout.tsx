@@ -28,7 +28,7 @@ export default function TabLayout() {
       }}
       tabBar={(props) => (
         <View style={{ backgroundColor: bg }}>
-          <MiniPlayer isDark={isDark} />
+          <MiniPlayer />
           <View
             style={[
               styles.tabBar,

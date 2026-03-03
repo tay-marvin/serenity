@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useRef, useCallback } from 'react';
 import {
   StyleSheet,
   Text,
@@ -7,6 +7,7 @@ import {
   Platform,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { useThemeContext } from '@/lib/theme-provider';
 
 const TRACK_HEIGHT = 160;
 const THUMB_SIZE = 14;
@@ -16,10 +17,11 @@ export interface EQSliderProps {
   value: number;       // 0–100
   accentColor: string;
   onChange: (value: number) => void;
-  isDark?: boolean;
 }
 
-export function EQSlider({ label, value, accentColor, onChange, isDark = true }: EQSliderProps) {
+export function EQSlider({ label, value, accentColor, onChange }: EQSliderProps) {
+  const { colorScheme } = useThemeContext();
+  const isDark = colorScheme === 'dark';
   const trackBgColor = isDark ? '#222222' : '#E0E0E0';
   const textColor = isDark ? '#888888' : '#666666';
   const thumbColor = isDark ? '#FFFFFF' : '#000000';

@@ -5,9 +5,9 @@ import {
   StyleSheet,
   Text,
   View,
-  useColorScheme,
   Platform,
 } from 'react-native';
+import { useThemeContext } from '@/lib/theme-provider';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAudioEngine } from '@/lib/audio-engine';
@@ -18,8 +18,8 @@ import * as Haptics from 'expo-haptics';
 export default function FavoritesScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const scheme = useColorScheme() ?? 'light';
-  const isDark = scheme === 'dark';
+  const { colorScheme } = useThemeContext();
+  const isDark = colorScheme === 'dark';
   const C = isDark ? DARK : LIGHT;
 
   const { favorites, activeSoundscapeId, isPlaying } = useAudioEngine();

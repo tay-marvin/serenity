@@ -137,3 +137,12 @@
 ## Tab Bar Dark Mode Fix
 
 - [x] Tab bar background goes pure black in dark mode, white in light mode (follows theme context)
+
+## Dark Mode — Full App Propagation
+
+- [x] Mixer screen: switch from useColorScheme to useThemeContext
+- [x] Favorites screen: switch from useColorScheme to useThemeContext
+- [x] MiniPlayer component: switch from useColorScheme to useThemeContext
+- [x] EQSlider component: switch from useColorScheme to useThemeContext
+- [x] TimerSheet component: switch from useColorScheme to useThemeContext
+- [x] Root layout StatusBar: follow theme context

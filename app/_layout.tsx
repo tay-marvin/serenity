@@ -7,10 +7,9 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
 import { Platform } from "react-native";
 import "@/lib/_core/nativewind-pressable";
-import { ThemeProvider } from "@/lib/theme-provider";
+import { ThemeProvider, useThemeContext } from "@/lib/theme-provider";
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 
 import {
   SafeAreaFrameContext,
@@ -31,8 +30,12 @@ export const unstable_settings = {
   anchor: "(tabs)",
 };
 
+function AppContent() {
+  const { colorScheme } = useThemeContext();
+  return <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />;
+}
+
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
   const [fontsLoaded, fontError] = useFonts({
     'PlayfairDisplay-Regular': require('../assets/fonts/PlayfairDisplay-Regular.ttf'),
     'PlayfairDisplay-Italic': require('../assets/fonts/PlayfairDisplay-Italic.ttf'),
@@ -116,7 +119,7 @@ export default function RootLayout() {
               />
             </Stack>
           </AudioEngineProvider>
-          <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+          <AppContent />
         </QueryClientProvider>
       </trpc.Provider>
     </GestureHandlerRootView>
