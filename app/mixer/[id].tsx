@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -6,7 +6,6 @@ import {
   Text,
   View,
   Platform,
-  Dimensions,
   PanResponder,
 } from 'react-native';
 import { useThemeContext } from '@/lib/theme-provider';
@@ -20,38 +19,43 @@ import { useAudioEngine } from '@/lib/audio-engine';
 import { SOUNDSCAPES, EQ_BAND_LABELS } from '@/lib/sounds';
 import * as Haptics from 'expo-haptics';
 
-const { width } = Dimensions.get('window');
-
 // ─── Horizontal Volume Slider ──────────────────────────────────────────────
 function VolumeSlider({
   value,
   onChange,
   isDark,
+  onDragStart,
+  onDragEnd,
 }: {
   value: number;
   onChange: (v: number) => void;
   isDark: boolean;
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
 }) {
   const C = isDark ? DARK : LIGHT;
-  // Keep a live ref to value so the PanResponder closure always reads current value
+  const trackWidthRef = useRef(0);
   const valueRef = useRef(value);
-  useEffect(() => { valueRef.current = value; }, [value]);
   const startValRef = useRef(value);
   const lastHapticRef = useRef(value);
-  const trackWidth = width - 48;
+
+  // Keep live ref in sync so PanResponder closure always reads current value
+  useEffect(() => { valueRef.current = value; }, [value]);
 
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
-      // Capture the value at the moment the finger touches down
+      onShouldBlockNativeResponder: () => true,
       onPanResponderGrant: () => {
         startValRef.current = valueRef.current;
         lastHapticRef.current = valueRef.current;
+        onDragStart?.();
       },
-      // Use gestureState.dx (cumulative delta from grant point) — reliable and no stale pageX
       onPanResponderMove: (_, gs) => {
-        const delta = (gs.dx / trackWidth) * 100;
+        const tw = trackWidthRef.current;
+        if (tw <= 0) return;
+        const delta = (gs.dx / tw) * 100;
         const next = Math.min(100, Math.max(0, Math.round(startValRef.current + delta)));
         if (Math.abs(next - lastHapticRef.current) >= 5 && Platform.OS !== 'web') {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -59,10 +63,15 @@ function VolumeSlider({
         }
         onChange(next);
       },
+      onPanResponderRelease: () => onDragEnd?.(),
+      onPanResponderTerminate: () => onDragEnd?.(),
     })
   ).current;
 
-  const thumbLeft = Math.max(0, Math.min(trackWidth - 12, (value / 100) * trackWidth - 6));
+  const THUMB = 14;
+  const thumbLeft = trackWidthRef.current > 0
+    ? Math.max(0, Math.min(trackWidthRef.current - THUMB, (value / 100) * trackWidthRef.current - THUMB / 2))
+    : 0;
 
   return (
     <View style={{ marginBottom: 8 }}>
@@ -76,11 +85,12 @@ function VolumeSlider({
         accessibilityLabel={`Master volume, ${Math.round(value)} percent`}
         accessibilityValue={{ min: 0, max: 100, now: Math.round(value) }}
         accessibilityHint="Drag left or right to adjust"
+        onLayout={(e) => { trackWidthRef.current = e.nativeEvent.layout.width; }}
         {...panResponder.panHandlers}
       >
         <View style={[volStyles.trackBg, { backgroundColor: C.border }]} />
         <View style={[volStyles.trackFill, { width: `${value}%` as any, backgroundColor: C.text }]} />
-        <View style={[volStyles.thumb, { left: thumbLeft, backgroundColor: C.text }]} />
+        <View style={[volStyles.thumb, { left: thumbLeft, width: THUMB, height: THUMB, borderRadius: THUMB / 2, backgroundColor: C.text }]} />
       </View>
     </View>
   );
@@ -162,6 +172,7 @@ export default function MixerScreen() {
 
   const [timerSheetVisible, setTimerSheetVisible] = useState(false);
   const [timerRemaining, setTimerRemaining] = useState<string | null>(null);
+  const [scrollEnabled, setScrollEnabled] = useState(true);
 
   const soundscape = SOUNDSCAPES.find(s => s.id === id);
   const isActive = activeSoundscapeId === id;
@@ -254,6 +265,7 @@ export default function MixerScreen() {
         style={styles.scroll}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 48 }]}
         showsVerticalScrollIndicator={false}
+        scrollEnabled={scrollEnabled}
       >
         {/* Hero block */}
         <View style={[styles.heroBlock, { borderBottomColor: C.border }]}>
@@ -407,6 +419,8 @@ export default function MixerScreen() {
           value={isActive ? masterVolume : 80}
           onChange={setMasterVolume}
           isDark={isDark}
+          onDragStart={() => setScrollEnabled(false)}
+          onDragEnd={() => setScrollEnabled(true)}
         />
       </ScrollView>
 

@@ -150,3 +150,7 @@
 ## Bug Fixes (Round 3)
 
 - [x] Fix buggy volume slider — rewrote PanResponder to use gestureState.dx + live valueRef to fix stale closure bug
+
+## Bug Fixes (Round 4)
+
+- [x] Fix volume slider thumb misalignment and ScrollView gesture conflict — onLayout track measurement + scrollEnabled lock during drag
