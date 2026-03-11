@@ -172,3 +172,11 @@
 
 - [x] Fix duplicate volume slider in mixer screen (Layer A slider shown twice when no Layer B)
 - [x] Replace long-press-only Layer B with an in-mixer sound picker (more discoverable)
+
+## Saved Mixes Feature
+
+- [x] Extend data model: SavedMix type with id, name, layerAId, layerBId, layerAVolume, layerBVolume
+- [x] Audio engine: saveMix(), deleteMix(), loadMix() methods persisted to AsyncStorage
+- [x] Mixer screen: "Save Mix" button that opens a name-input sheet (only shown when Layer B is active)
+- [x] Saved tab: show saved mixes section above saved individual sounds; tap to load the mix
+- [x] Saved tab: swipe-to-delete or long-press-to-delete for saved mixes

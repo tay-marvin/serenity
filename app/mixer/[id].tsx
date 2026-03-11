@@ -7,6 +7,9 @@ import {
   View,
   Platform,
   PanResponder,
+  TextInput,
+  Modal,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useThemeContext } from '@/lib/theme-provider';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -182,6 +185,7 @@ export default function MixerScreen() {
     setLayerVolume,
     toggleFavorite,
     setBell,
+    saveMix,
   } = useAudioEngine();
 
   const [timerSheetVisible, setTimerSheetVisible] = useState(false);
@@ -189,6 +193,8 @@ export default function MixerScreen() {
   const [scrollEnabled, setScrollEnabled] = useState(true);
   // Controls whether the Layer B picker list is expanded
   const [layerPickerOpen, setLayerPickerOpen] = useState(false);
+  const [saveMixSheetVisible, setSaveMixSheetVisible] = useState(false);
+  const [mixName, setMixName] = useState('');
 
   const soundscape = SOUNDSCAPES.find(s => s.id === id);
   const isLayerA = layerAId === id;
@@ -532,6 +538,27 @@ export default function MixerScreen() {
           </>
         )}
 
+        {/* ─── Save Mix ──────────────────────────────────────────────── */}
+        <View style={[styles.sectionHeader, { borderBottomColor: C.border, marginTop: 8 }]}>
+          <Text style={[styles.sectionLabel, { color: C.muted }]}>MIX PRESET</Text>
+          <Text style={[styles.sectionSub, { color: C.muted }]}>Save for later</Text>
+        </View>
+        <Pressable
+          onPress={() => {
+            if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setSaveMixSheetVisible(true);
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Save current mix as a preset"
+          style={({ pressed }) => [
+            styles.saveMixBtn,
+            { borderColor: C.border },
+            pressed && { opacity: 0.6 },
+          ]}
+        >
+          <Text style={[styles.saveMixBtnText, { color: C.text }]}>SAVE MIX</Text>
+        </Pressable>
+
       </ScrollView>
 
       {/* Timer Sheet */}
@@ -540,6 +567,88 @@ export default function MixerScreen() {
         onClose={() => setTimerSheetVisible(false)}
         accentColor={isDark ? '#FFFFFF' : '#000000'}
       />
+
+      {/* Save Mix Sheet */}
+      <Modal
+        visible={saveMixSheetVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSaveMixSheetVisible(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setSaveMixSheetVisible(false)}
+          accessibilityRole="button"
+          accessibilityLabel="Close save mix sheet"
+        >
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={{ width: '100%' }}
+          >
+            <Pressable
+              style={[styles.saveSheet, { backgroundColor: C.bg, borderTopColor: C.border }]}
+              onPress={() => {}}
+            >
+              <Text style={[styles.saveSheetTitle, { color: C.text }]}>Name this mix</Text>
+              <Text style={[styles.saveSheetSub, { color: C.muted }]}>
+                {soundscape.name}{layerBSoundscape ? ` + ${layerBSoundscape.name}` : ''}
+              </Text>
+              <TextInput
+                style={[styles.saveSheetInput, { color: C.text, borderColor: C.border }]}
+                placeholder="e.g. Deep Focus, Sleep Mode…"
+                placeholderTextColor={C.muted}
+                value={mixName}
+                onChangeText={setMixName}
+                autoFocus
+                returnKeyType="done"
+                maxLength={40}
+                onSubmitEditing={() => {
+                  const name = mixName.trim();
+                  if (!name) return;
+                  saveMix(name);
+                  setMixName('');
+                  setSaveMixSheetVisible(false);
+                  if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                }}
+              />
+              <View style={styles.saveSheetActions}>
+                <Pressable
+                  onPress={() => { setMixName(''); setSaveMixSheetVisible(false); }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Cancel"
+                  style={({ pressed }) => [
+                    styles.saveSheetBtn,
+                    { borderColor: C.border },
+                    pressed && { opacity: 0.5 },
+                  ]}
+                >
+                  <Text style={[styles.saveSheetBtnText, { color: C.muted }]}>CANCEL</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    const name = mixName.trim();
+                    if (!name) return;
+                    saveMix(name);
+                    setMixName('');
+                    setSaveMixSheetVisible(false);
+                    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Save mix"
+                  style={({ pressed }) => [
+                    styles.saveSheetBtn,
+                    { backgroundColor: C.text, borderColor: C.text },
+                    !mixName.trim() && { opacity: 0.3 },
+                    pressed && { opacity: 0.6 },
+                  ]}
+                >
+                  <Text style={[styles.saveSheetBtnText, { color: C.bg }]}>SAVE</Text>
+                </Pressable>
+              </View>
+            </Pressable>
+          </KeyboardAvoidingView>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -791,5 +900,77 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     letterSpacing: 2,
     lineHeight: 14,
+  },
+  // Save Mix
+  saveMixBtn: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    minHeight: 44,
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
+  saveMixBtnText: {
+    fontSize: 10,
+    fontWeight: '400',
+    letterSpacing: 3,
+    lineHeight: 16,
+  },
+  // Modal
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  saveSheet: {
+    paddingHorizontal: 24,
+    paddingTop: 28,
+    paddingBottom: 40,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    gap: 16,
+  },
+  saveSheetTitle: {
+    fontFamily: 'PlayfairDisplay-Regular',
+    fontSize: 28,
+    fontWeight: '400',
+    letterSpacing: -0.5,
+    lineHeight: 34,
+  },
+  saveSheetSub: {
+    fontSize: 12,
+    fontWeight: '400',
+    letterSpacing: 0.5,
+    lineHeight: 18,
+    marginTop: -8,
+  },
+  saveSheetInput: {
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    fontWeight: '400',
+    letterSpacing: 0.2,
+    lineHeight: 22,
+    minHeight: 52,
+  },
+  saveSheetActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 4,
+  },
+  saveSheetBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 52,
+  },
+  saveSheetBtnText: {
+    fontSize: 10,
+    fontWeight: '400',
+    letterSpacing: 3,
+    lineHeight: 16,
   },
 });

@@ -14,12 +14,24 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const STORAGE_KEY = 'serenity_state';
 const FAVORITES_KEY = 'serenity_favorites';
+const MIXES_KEY = 'serenity_mixes';
 
 // App icon URL used as lock screen artwork
 const APP_ARTWORK_URL =
   'https://d2xsxph8kpxj0f.cloudfront.net/310519663324303301/BrTNGmudEFZLSEsVVpNvpk/serenity-icon-GThH38iQV33v9GWNBuPiQY.png';
 
 export type LayerSlot = 'A' | 'B';
+
+// ─── SavedMix type ───────────────────────────────────────────────────────────
+export interface SavedMix {
+  id: string;          // uuid-style timestamp
+  name: string;        // user-provided name
+  layerAId: string;    // required — Layer A sound id
+  layerBId: string | null; // optional — Layer B sound id
+  layerAVolume: number; // 0-100
+  layerBVolume: number; // 0-100
+  createdAt: number;   // Date.now()
+}
 
 export interface AudioEngineState {
   // Layer A — primary sound
@@ -33,6 +45,7 @@ export interface AudioEngineState {
   // Shared EQ levels (applied to Layer A)
   levels: number[]; // 0-100 for each of 10 bands
   favorites: string[];
+  savedMixes: SavedMix[];
   timerMinutes: number | null;
   timerEndTime: number | null;
   bellIntervalMinutes: number | null;
@@ -50,17 +63,21 @@ interface AudioEngineContext extends AudioEngineState {
   setLevel: (bandIndex: number, value: number) => void;
   setAllLevels: (levels: number[]) => void;
   applyPreset: (preset: EQPreset) => void;
+  // Saved mixes
+  saveMix: (name: string) => SavedMix | null;
+  deleteMix: (id: string) => void;
+  loadMix: (mix: SavedMix) => void;
   // Misc
   toggleFavorite: (id: string) => void;
   startTimer: (minutes: number, fadeOut: boolean) => void;
   cancelTimer: () => void;
   setBell: (enabled: boolean, intervalMinutes: number) => void;
   // Derived helpers
-  activeSoundscape: Soundscape | null; // Layer A soundscape (for backward compat)
-  isPlaying: boolean; // true if either layer is playing
-  activeSoundscapeId: string | null; // Layer A id (backward compat)
-  masterVolume: number; // Layer A volume (backward compat)
-  // Legacy aliases kept for backward compatibility
+  activeSoundscape: Soundscape | null;
+  isPlaying: boolean;
+  activeSoundscapeId: string | null;
+  masterVolume: number;
+  // Legacy aliases
   play: (id: string) => void;
   pause: () => void;
   resume: () => void;
@@ -79,6 +96,7 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
     layerBPlaying: false,
     levels: [...DEFAULT_LEVELS],
     favorites: [],
+    savedMixes: [],
     timerMinutes: null,
     timerEndTime: null,
     bellIntervalMinutes: 10,
@@ -98,9 +116,10 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
   useEffect(() => {
     (async () => {
       try {
-        const [savedState, savedFavs] = await Promise.all([
+        const [savedState, savedFavs, savedMixesRaw] = await Promise.all([
           AsyncStorage.getItem(STORAGE_KEY),
           AsyncStorage.getItem(FAVORITES_KEY),
+          AsyncStorage.getItem(MIXES_KEY),
         ]);
         if (savedState) {
           const parsed = JSON.parse(savedState);
@@ -113,6 +132,9 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
         }
         if (savedFavs) {
           setState(prev => ({ ...prev, favorites: JSON.parse(savedFavs) }));
+        }
+        if (savedMixesRaw) {
+          setState(prev => ({ ...prev, savedMixes: JSON.parse(savedMixesRaw) }));
         }
       } catch {}
     })();
@@ -170,7 +192,6 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
     const playerRef = slot === 'A' ? playerARef : playerBRef;
     const volumeRef = slot === 'A' ? currentVolumeARef : currentVolumeBRef;
 
-    // Deregister lock screen from old player
     if (playerRef.current && Platform.OS !== 'web') {
       try { playerRef.current.setActiveForLockScreen(false); } catch {}
     }
@@ -181,7 +202,6 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
       const player = createAudioPlayer({ uri: soundscape.audioUrl });
       player.loop = true;
 
-      // Compute volume — Layer A uses EQ levels, Layer B uses flat volume
       const vol = slot === 'A'
         ? getEffectiveVolume(state.levels, state.layerAVolume)
         : state.layerBVolume / 100;
@@ -191,7 +211,6 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
       playerRef.current = player;
       volumeRef.current = vol;
 
-      // Only Layer A controls lock screen
       if (slot === 'A') {
         activateLockScreen(player, soundscape);
       }
@@ -231,7 +250,6 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
   const resumeAll = useCallback(() => {
     if (playerARef.current) {
       playerARef.current.play();
-      // Re-register lock screen
       const id = state.layerAId;
       if (id && Platform.OS !== 'web') {
         const soundscape = SOUNDSCAPES.find(s => s.id === id);
@@ -327,6 +345,53 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
       return { ...prev, favorites: newFavs };
     });
   }, []);
+
+  // ─── Saved Mixes ───────────────────────────────────────────────────────────
+
+  const saveMix = useCallback((name: string): SavedMix | null => {
+    // Require at least Layer A to be loaded
+    if (!state.layerAId) return null;
+    const mix: SavedMix = {
+      id: `mix_${Date.now()}`,
+      name: name.trim() || 'My Mix',
+      layerAId: state.layerAId,
+      layerBId: state.layerBId,
+      layerAVolume: state.layerAVolume,
+      layerBVolume: state.layerBVolume,
+      createdAt: Date.now(),
+    };
+    setState(prev => {
+      const newMixes = [mix, ...prev.savedMixes];
+      AsyncStorage.setItem(MIXES_KEY, JSON.stringify(newMixes)).catch(() => {});
+      return { ...prev, savedMixes: newMixes };
+    });
+    return mix;
+  }, [state.layerAId, state.layerBId, state.layerAVolume, state.layerBVolume]);
+
+  const deleteMix = useCallback((id: string) => {
+    setState(prev => {
+      const newMixes = prev.savedMixes.filter(m => m.id !== id);
+      AsyncStorage.setItem(MIXES_KEY, JSON.stringify(newMixes)).catch(() => {});
+      return { ...prev, savedMixes: newMixes };
+    });
+  }, []);
+
+  // loadMix plays both layers and sets volumes — does NOT navigate
+  const loadMix = useCallback((mix: SavedMix) => {
+    playLayer('A', mix.layerAId);
+    if (mix.layerBId) {
+      playLayer('B', mix.layerBId);
+    } else {
+      clearLayer('B');
+    }
+    // Volumes are set after a short delay so players are initialised
+    setTimeout(() => {
+      setLayerVolume('A', mix.layerAVolume);
+      setLayerVolume('B', mix.layerBVolume);
+    }, 300);
+  }, [playLayer, clearLayer, setLayerVolume]);
+
+  // ─── Timer / Bell ─────────────────────────────────────────────────────────
 
   const startTimer = useCallback((minutes: number, fadeOut: boolean) => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -424,16 +489,17 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
       setLevel,
       setAllLevels,
       applyPreset,
+      saveMix,
+      deleteMix,
+      loadMix,
       toggleFavorite,
       startTimer,
       cancelTimer,
       setBell,
       activeSoundscape,
       isPlaying,
-      // Backward-compat aliases
       activeSoundscapeId: state.layerAId,
       masterVolume: state.layerAVolume,
-      // Legacy stubs — kept so old call sites don't crash
       play: (id: string) => playLayer('A', id),
       pause: pauseAll,
       resume: resumeAll,
