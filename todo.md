@@ -180,3 +180,7 @@
 - [x] Mixer screen: "Save Mix" button that opens a name-input sheet (only shown when Layer B is active)
 - [x] Saved tab: show saved mixes section above saved individual sounds; tap to load the mix
 - [x] Saved tab: swipe-to-delete or long-press-to-delete for saved mixes
+
+## Bug Fixes (Round 7)
+
+- [x] Fix Save Mix bottom sheet dismissing when spacebar is pressed while typing the mix name

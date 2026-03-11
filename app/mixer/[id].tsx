@@ -10,6 +10,7 @@ import {
   TextInput,
   Modal,
   KeyboardAvoidingView,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { useThemeContext } from '@/lib/theme-provider';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -575,79 +576,81 @@ export default function MixerScreen() {
         animationType="slide"
         onRequestClose={() => setSaveMixSheetVisible(false)}
       >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setSaveMixSheetVisible(false)}
-          accessibilityRole="button"
-          accessibilityLabel="Close save mix sheet"
-        >
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={{ width: '100%' }}
-          >
-            <Pressable
-              style={[styles.saveSheet, { backgroundColor: C.bg, borderTopColor: C.border }]}
-              onPress={() => {}}
+        {/*
+          Outer: TouchableWithoutFeedback wrapping the full-screen overlay.
+          Tapping the dim area closes the sheet.
+          Inner: TouchableWithoutFeedback wrapping the sheet card.
+          Stops taps (including keyboard spacebar on web) from bubbling up to the overlay.
+        */}
+        <TouchableWithoutFeedback onPress={() => setSaveMixSheetVisible(false)} accessible={false}>
+          <View style={styles.modalOverlay}>
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              style={{ width: '100%' }}
             >
-              <Text style={[styles.saveSheetTitle, { color: C.text }]}>Name this mix</Text>
-              <Text style={[styles.saveSheetSub, { color: C.muted }]}>
-                {soundscape.name}{layerBSoundscape ? ` + ${layerBSoundscape.name}` : ''}
-              </Text>
-              <TextInput
-                style={[styles.saveSheetInput, { color: C.text, borderColor: C.border }]}
-                placeholder="e.g. Deep Focus, Sleep Mode…"
-                placeholderTextColor={C.muted}
-                value={mixName}
-                onChangeText={setMixName}
-                autoFocus
-                returnKeyType="done"
-                maxLength={40}
-                onSubmitEditing={() => {
-                  const name = mixName.trim();
-                  if (!name) return;
-                  saveMix(name);
-                  setMixName('');
-                  setSaveMixSheetVisible(false);
-                  if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                }}
-              />
-              <View style={styles.saveSheetActions}>
-                <Pressable
-                  onPress={() => { setMixName(''); setSaveMixSheetVisible(false); }}
-                  accessibilityRole="button"
-                  accessibilityLabel="Cancel"
-                  style={({ pressed }) => [
-                    styles.saveSheetBtn,
-                    { borderColor: C.border },
-                    pressed && { opacity: 0.5 },
-                  ]}
-                >
-                  <Text style={[styles.saveSheetBtnText, { color: C.muted }]}>CANCEL</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => {
-                    const name = mixName.trim();
-                    if (!name) return;
-                    saveMix(name);
-                    setMixName('');
-                    setSaveMixSheetVisible(false);
-                    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                  }}
-                  accessibilityRole="button"
-                  accessibilityLabel="Save mix"
-                  style={({ pressed }) => [
-                    styles.saveSheetBtn,
-                    { backgroundColor: C.text, borderColor: C.text },
-                    !mixName.trim() && { opacity: 0.3 },
-                    pressed && { opacity: 0.6 },
-                  ]}
-                >
-                  <Text style={[styles.saveSheetBtnText, { color: C.bg }]}>SAVE</Text>
-                </Pressable>
-              </View>
-            </Pressable>
-          </KeyboardAvoidingView>
-        </Pressable>
+              <TouchableWithoutFeedback accessible={false}>
+                <View style={[styles.saveSheet, { backgroundColor: C.bg, borderTopColor: C.border }]}>
+                  <Text style={[styles.saveSheetTitle, { color: C.text }]}>Name this mix</Text>
+                  <Text style={[styles.saveSheetSub, { color: C.muted }]}>
+                    {soundscape.name}{layerBSoundscape ? ` + ${layerBSoundscape.name}` : ''}
+                  </Text>
+                  <TextInput
+                    style={[styles.saveSheetInput, { color: C.text, borderColor: C.border }]}
+                    placeholder="e.g. Deep Focus, Sleep Mode…"
+                    placeholderTextColor={C.muted}
+                    value={mixName}
+                    onChangeText={setMixName}
+                    autoFocus
+                    returnKeyType="done"
+                    maxLength={40}
+                    onSubmitEditing={() => {
+                      const name = mixName.trim();
+                      if (!name) return;
+                      saveMix(name);
+                      setMixName('');
+                      setSaveMixSheetVisible(false);
+                      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    }}
+                  />
+                  <View style={styles.saveSheetActions}>
+                    <Pressable
+                      onPress={() => { setMixName(''); setSaveMixSheetVisible(false); }}
+                      accessibilityRole="button"
+                      accessibilityLabel="Cancel"
+                      style={({ pressed }) => [
+                        styles.saveSheetBtn,
+                        { borderColor: C.border },
+                        pressed && { opacity: 0.5 },
+                      ]}
+                    >
+                      <Text style={[styles.saveSheetBtnText, { color: C.muted }]}>CANCEL</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => {
+                        const name = mixName.trim();
+                        if (!name) return;
+                        saveMix(name);
+                        setMixName('');
+                        setSaveMixSheetVisible(false);
+                        if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                      }}
+                      accessibilityRole="button"
+                      accessibilityLabel="Save mix"
+                      style={({ pressed }) => [
+                        styles.saveSheetBtn,
+                        { backgroundColor: C.text, borderColor: C.text },
+                        !mixName.trim() && { opacity: 0.3 },
+                        pressed && { opacity: 0.6 },
+                      ]}
+                    >
+                      <Text style={[styles.saveSheetBtnText, { color: C.bg }]}>SAVE</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              </TouchableWithoutFeedback>
+            </KeyboardAvoidingView>
+          </View>
+        </TouchableWithoutFeedback>
       </Modal>
     </View>
   );
